@@ -1,74 +1,112 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+/* Updtated the entry page (homepage) to contain the product logo and name. 
+* Added buttons for the settings and camera (non functional at the moment)
+* Added console printouts for testing purposes.
+* Placeholder font for title
+*  -nage
+*/
+import React from "react";
+import { View, Text, Button, Image, StyleSheet, TouchableOpacity} from "react-native";
+import {Ionicons} from '@expo/vector-icons';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-
-export default function HomeScreen() {
+export default function index() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style = {styles.logoContainer}>
+      {/*Logo*/}
+      <Image source={require("../../assets/images/LOGO.png")} style={styles.logo} />
+
+      {/*Product Title */}
+      <View style = {styles.titleContainer}>
+        <Text style={styles.title}>Driver{'\n'}Drowsiness{'\n'}Detection{'\n'}System</Text>
+      </View>
+
+      {/*Settings Button*/}
+      <TouchableOpacity
+        style={styles.settingsButton}
+        onPress={() => (alert('Settings Button Pressed'), console.log("The settings icon on the homepage was pressed!"))}
+      >
+        <Ionicons name="settings" size={40} color="#FF5555" />
+      </TouchableOpacity>
+
+      {/*Stats Button */}
+      <TouchableOpacity style={styles.statsButton} 
+        onPress={() => (alert('Driving Stats Button Pressed'), console.log("The stats button on the homepage was pressed!"))}>
+        <Text style={styles.statsText}>Driving Stats</Text>
+        <Ionicons name="arrow-forward" size={20} color="black" />
+      </TouchableOpacity>
+
+      {/*Camera Button */}
+      <TouchableOpacity style={styles.cameraButton} 
+        onPress={() => (alert('Camera Button Pressed'), console.log("The camera button on the homepage was pressed!"))}>
+        <Ionicons name= "camera-outline" size = {40} color="black" />
+      </TouchableOpacity> 
+
+    </View> 
   );
 }
 
 const styles = StyleSheet.create({
+  logoContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#D9D9D9"
+  
+  },
+
   titleContainer: {
+    justifyContent: "flex-start",
+    left: -30,
+    margin: 5,
+  
+  },
+
+  settingsButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+  },
+
+  title: {
+      fontSize: 24,
+      textAlign: "left",
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      fontFamily: 'Arial', //Placeholder font
+      fontWeight: "bold",
+      marginBottom: 20,
+  },
+  logo: {
+    width: 225.6,
+    height: 100.33,
+    resizeMode: "contain",
+    marginBottom: 20,
+  },
+  cameraButton: {
+    position: 'absolute',
+    bottom: 50, 
+    borderRadius: 50,
+    padding: 10,
+    borderWidth: 3,
+    borderColor: '#FF5555',
+    backgroundColor: '#F0B4B4',
+    marginTop: 20,
+  },
+  statsButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 30,
+    borderRadius: 30,
+    backgroundColor: 'white',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
+
+statsText: {
+    textAlign: 'center',
+    alignContent: 'center',
+    color: 'black',
+    letterSpacing: 1,
+    fontWeight: 'medium',
+    fontSize: 18,
+},
+
+})
