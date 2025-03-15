@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, Alert, TouchableOpacity} from 'react-native'
 import React from 'react'
 import { Link } from 'expo-router'
+import {Ionicons} from '@expo/vector-icons';
 
 /*
     Currently:
@@ -51,8 +52,18 @@ const settings = () => {
         )
     }
 
+
+    /*
+     <TouchableOpacity
+        style={styles.settingsButton}
+        onPress={() => (alert('Settings Button Pressed'), console.log("The settings icon on the homepage was pressed!"))}
+      >
+        <Ionicons name="settings" size={40} color="#FF5555" />
+      </TouchableOpacity>
+    */
   return (
     <View style={styles.container}>
+      < Link href='/home' style={styles.back_arrow}><Ionicons name="arrow-back" size={40} color="#FF5555" /></Link>
       <Text style={styles.title}>Settings</Text>
       < TouchableOpacity onPress={handleHelp}>
         < Text style={styles.link}>Help</Text>
@@ -82,7 +93,7 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: 'bold',
         textAlign: 'center',
-        marginTop:120,
+        marginTop:40,
         
     },
     link: {
@@ -98,6 +109,10 @@ const styles = StyleSheet.create({
         marginLeft: 50,
         marginRight: 50,
         borderRadius:20,
+    },
+    back_arrow:{
+        marginTop: 30,
+        marginLeft: 30,
     }
 
 })
