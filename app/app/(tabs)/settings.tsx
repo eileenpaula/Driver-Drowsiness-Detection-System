@@ -6,14 +6,12 @@ import {Ionicons} from '@expo/vector-icons';
 /*
     Currently:
         -Added basic buttons initially planned
-        -Made majority of buttons do something 
+        -Made majority of buttons do something
+        -Add back button 
     Future:
-        -Make font "Instrument Sans"
         -Make sure camera and location access changes something
         -Give better descriptions
-        -Add back button
         -Add and finish "report problem"
-        -Add "Sound/Haptic Feedback" button if necessary 
        
 */
 
@@ -52,18 +50,9 @@ const settings = () => {
         )
     }
 
-
-    /*
-     <TouchableOpacity
-        style={styles.settingsButton}
-        onPress={() => (alert('Settings Button Pressed'), console.log("The settings icon on the homepage was pressed!"))}
-      >
-        <Ionicons name="settings" size={40} color="#FF5555" />
-      </TouchableOpacity>
-    */
   return (
     <View style={styles.container}>
-      < Link href='/home' style={styles.back_arrow}><Ionicons name="arrow-back" size={40} color="#FF5555" /></Link>
+      < Link href='/' style={styles.back_arrow}><Ionicons name="arrow-back" size={40} color="#FF5555" /></Link>
       <Text style={styles.title}>Settings</Text>
       < TouchableOpacity onPress={handleHelp}>
         < Text style={styles.link}>Help</Text>

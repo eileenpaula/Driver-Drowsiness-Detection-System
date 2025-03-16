@@ -8,6 +8,15 @@ export default function RootLayout() {
       <Stack.Screen name ="index"
       options={{headerShown: false}}
       />
+      <Stack.Screen name ="settings"
+      options={{headerShown: false}}
+      />
+      <Stack.Screen name ="report_problem"
+      options={{headerShown: false}}
+      />
+      <Stack.Screen name ="camera"
+      options={{headerShown: false}}
+      />
     </Stack>
   ) ;
 }

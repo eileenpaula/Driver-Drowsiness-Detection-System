@@ -7,6 +7,7 @@
 import React from "react";
 import { View, Text, Button, Image, StyleSheet, TouchableOpacity} from "react-native";
 import {Ionicons} from '@expo/vector-icons';
+import { Link } from 'expo-router'
 
 export default function index() {
   return (
@@ -20,12 +21,10 @@ export default function index() {
       </View>
 
       {/*Settings Button*/}
-      <TouchableOpacity
-        style={styles.settingsButton}
-        onPress={() => (alert('Settings Button Pressed'), console.log("The settings icon on the homepage was pressed!"))}
-      >
+      < Link href='/settings'
+        style={styles.settingsButton}>
         <Ionicons name="settings" size={40} color="#FF5555" />
-      </TouchableOpacity>
+      </Link>
 
       {/*Stats Button */}
       <TouchableOpacity style={styles.statsButton} 
@@ -35,10 +34,10 @@ export default function index() {
       </TouchableOpacity>
 
       {/*Camera Button */}
-      <TouchableOpacity style={styles.cameraButton} 
-        onPress={() => (alert('Camera Button Pressed'), console.log("The camera button on the homepage was pressed!"))}>
+      < Link href='/camera' 
+        style={styles.cameraButton}>
         <Ionicons name= "camera-outline" size = {40} color="black" />
-      </TouchableOpacity> 
+      </Link> 
 
     </View> 
   );
