@@ -11,6 +11,15 @@ export default function RootLayout() {
       <Stack.Screen name="stats" 
       options={{headerTitle: "Driving Stats"}}
       />
+      <Stack.Screen name ="settings"
+      options={{headerShown: false}}
+      />
+      <Stack.Screen name ="report_problem"
+      options={{headerShown: false}}
+      />
+      <Stack.Screen name ="camera"
+      options={{headerShown: false}}
+      />
     </Stack>
   ) ;
 }
