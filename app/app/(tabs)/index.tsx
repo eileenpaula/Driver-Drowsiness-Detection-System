@@ -7,8 +7,10 @@
 import React from "react";
 import { View, Text, Button, Image, StyleSheet, TouchableOpacity} from "react-native";
 import {Ionicons} from '@expo/vector-icons';
+import { useRouter } from "expo-router";
 
 export default function index() {
+  const router = useRouter();
   return (
     <View style = {styles.logoContainer}>
       {/*Logo*/}
@@ -29,7 +31,7 @@ export default function index() {
 
       {/*Stats Button */}
       <TouchableOpacity style={styles.statsButton} 
-        onPress={() => (alert('Driving Stats Button Pressed'), console.log("The stats button on the homepage was pressed!"))}>
+        onPress={() => (router.push("./stats"), console.log("The stats button on the homepage was pressed!"))}>
         <Text style={styles.statsText}>Driving Stats</Text>
         <Ionicons name="arrow-forward" size={20} color="black" />
       </TouchableOpacity>
