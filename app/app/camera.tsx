@@ -57,7 +57,7 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      < Link href='/' style={styles.back_arrow}><Ionicons name="arrow-back" size={40} color="#FF5555" /></Link>
+      < Link href='../' style={styles.back_arrow}><Ionicons name="arrow-back" size={40} color="#FF5555" /></Link>
       <CameraView style={styles.camera} facing={facing}>
         <View style={styles.buttonContainer}>
         </View>

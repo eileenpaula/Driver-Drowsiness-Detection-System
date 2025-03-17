@@ -1,6 +1,5 @@
-/* Updtated the entry page (homepage) to contain the product logo and name. 
-* Added buttons for the settings and camera (non functional at the moment)
-* Added console printouts for testing purposes.
+/* Edite Camera and Settings to use TouchableOpacity wrapped in the link bc of expo-router usage.
+Was recieving an error with href--> using ./settings fixed it, something to do with the path idk
 * Placeholder font for title
 *  -nage
 */
@@ -15,7 +14,7 @@ export default function index() {
   return (
     <View style = {styles.logoContainer}>
       {/*Logo*/}
-      <Image source={require("../../assets/images/LOGO.png")} style={styles.logo} />
+      <Image source={require("../assets/images/LOGO.png")} style={styles.logo} />
 
       {/*Product Title */}
       <View style = {styles.titleContainer}>
@@ -23,9 +22,10 @@ export default function index() {
       </View>
 
       {/*Settings Button*/}
-      < Link href='/settings'
-        style={styles.settingsButton}>
-        <Ionicons name="settings" size={40} color="#FF5555" />
+      < Link href='./settings' asChild>
+        <TouchableOpacity style={styles.settingsButton}>
+         <Ionicons name="settings" size={40} color="#FF5555" />
+       </TouchableOpacity>
       </Link>
 
       {/*Stats Button */}
@@ -36,9 +36,10 @@ export default function index() {
       </TouchableOpacity>
 
       {/*Camera Button */}
-      < Link href='/camera' 
-        style={styles.cameraButton}>
+      < Link href='./camera' asChild>
+      <TouchableOpacity style={styles.cameraButton}>
         <Ionicons name= "camera-outline" size = {40} color="black" />
+      </TouchableOpacity>
       </Link> 
 
     </View> 
