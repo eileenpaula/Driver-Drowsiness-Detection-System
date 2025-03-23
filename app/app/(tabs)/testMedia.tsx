@@ -6,25 +6,22 @@ import {
 } from "expo-camera";
 import { useRef, useState, useEffect } from "react";
 import { Button, Pressable, StyleSheet, Text, View } from "react-native";
-import { Image } from "expo-image";
-import { AntDesign } from "@expo/vector-icons";
-import { Feather } from "@expo/vector-icons";
-import { FontAwesome6 } from "@expo/vector-icons";
 import * as Progress from "react-native-progress";
 
 export default function App() {
   const [permission, requestPermission] = useCameraPermissions();
   const ref = useRef<CameraView>(null);
   const [uri, setUri] = useState<string | null>(null);
-  const [mode, setMode] = useState<CameraMode>("picture");
-  const [facing, setFacing] = useState<CameraType>("back");
+  const [mode, setMode] = useState<CameraMode>("video");
+  const [facing, setFacing] = useState<CameraType>("front");
   const [recording, setRecording] = useState(false);
   const [progress, setProgress] = useState(0);
   const [indeterminate, setIndeterminate] = useState(true);
-  const [waiting, setWaiting] = useState(false);
+  const [waiting, setWaiting] = useState(true);
 
-  const recordDuration = 10; // Recording time in seconds
-  const waitDuration = 10; // Wait time in seconds
+
+  const recordDuration = 5; // Recording time in seconds
+  const waitDuration = 15; // Wait time in seconds
 
   const sendVideoToBackend = async (uri: string) => {
       const formData = new FormData();
@@ -54,12 +51,66 @@ export default function App() {
       } catch (error) {
         console.error('Error sending video:', error);
       }
-    };
+  };
+
+  const recordVideo = async () => {
+    
+    if (permission.granted){
+      console.log("INSIDE recordvideo")
+      if (recording) {
+        console.log("inside recoridngin if record")
+        stopRecording();
+      } else {
+        
+        setRecording(true);
+        console.log("Recording started...");
+        const video = await ref.current?.recordAsync();
+        console.log("Recording above")
+        console.log({ video });
+        await sendVideoToBackend(video?.uri || "")
+
+      }}
+  };
+
+  const stopRecording = () => {
+    setRecording(false);
+    ref.current?.stopRecording();
+    console.log("Recording stopped.");
+  };
+  
 
   useEffect(() => {
-    if (waiting) return;
+    if (waiting && !recording) {
+      let progressInterval = setInterval(() => {
+        console.log("waiting now")
+        // console.log(permission.granted)
+        setProgress((prev) => {
+          if (prev >= 1) {
+            console.log("waiting in iff")
+            clearInterval(progressInterval);
+            return 1;
+          }
+          return prev + 1 / recordDuration; // Increment for 60 seconds
+        });
+      }, 1000);
 
-    if (recording) {
+      setTimeout(() => {
+        console.log('waiting in settimeout')
+        clearInterval(progressInterval);
+        recordVideo();
+        setWaiting(true);
+        setProgress(0);
+        setTimeout(() => {
+          setWaiting(false);
+          setRecording(true)
+        }, waitDuration * 1000); // Wait for 10 seconds
+      }, recordDuration * 1000);
+    };
+  }, [permission, recording, waiting]);
+  
+  useEffect(() => {
+    if (recording && !waiting) {
+      console.log("recording now")
       let progressInterval = setInterval(() => {
         setProgress((prev) => {
           if (prev >= 1) {
@@ -71,16 +122,18 @@ export default function App() {
       }, 1000);
 
       setTimeout(() => {
+        console.log("should stop recording")
         stopRecording();
         clearInterval(progressInterval);
         setWaiting(true);
         setProgress(0);
         setTimeout(() => {
-          setWaiting(false);
+          setWaiting(true);
+          setRecording(false);
         }, waitDuration * 1000); // Wait for 10 seconds
       }, recordDuration * 1000);
     }
-  }, [recording, waiting]);
+  }, [permission, recording, waiting]);
 
   if (!permission) {
     return null;
@@ -97,53 +150,6 @@ export default function App() {
     );
   }
 
-  const takePicture = async () => {
-    const photo = await ref.current?.takePictureAsync();
-    if (photo?.uri) {
-      setUri(photo.uri);
-    }
-  };
-
-  const recordVideo = async () => {
-    if (recording) {
-      stopRecording();
-    } else {
-      setRecording(true);
-      console.log("Recording started...");
-      const video = await ref.current?.recordAsync();
-      console.log({ video });
-      await sendVideoToBackend(video?.uri || "")
-
-    }
-  };
-
-  const stopRecording = () => {
-    setRecording(false);
-    ref.current?.stopRecording();
-    console.log("Recording stopped.");
-  };
-
-  const toggleMode = () => {
-    setMode((prev) => (prev === "picture" ? "video" : "picture"));
-  };
-
-  const toggleFacing = () => {
-    setFacing((prev) => (prev === "back" ? "front" : "back"));
-  };
-
-  const renderPicture = () => {
-    return (
-      <View>
-        <Image
-          source={{ uri: uri || "" }}
-          resizeMode="contain"
-          style={{ width: 300, aspectRatio: 1 }}
-        />
-        <Button onPress={() => setUri(null)} title="Take another picture" />
-      </View>
-    );
-  };
-
   const renderCamera = () => {
     return (
       <CameraView
@@ -155,13 +161,6 @@ export default function App() {
         responsiveOrientationWhenOrientationLocked
       >
         <View style={styles.shutterContainer}>
-          <Pressable onPress={toggleMode}>
-            {mode === "picture" ? (
-              <AntDesign name="picture" size={32} color="white" />
-            ) : (
-              <Feather name="video" size={32} color="white" />
-            )}
-          </Pressable>
           <Pressable onPress={recordVideo}>
             {({ pressed }) => (
               <View
@@ -176,15 +175,12 @@ export default function App() {
                   style={[
                     styles.shutterBtnInner,
                     {
-                      backgroundColor: mode === "picture" ? "white" : "red",
+                      backgroundColor: "red",
                     },
                   ]}
                 />
               </View>
             )}
-          </Pressable>
-          <Pressable onPress={toggleFacing}>
-            <FontAwesome6 name="rotate-left" size={32} color="white" />
           </Pressable>
         </View>
         <Progress.Bar
@@ -200,7 +196,7 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      {uri ? renderPicture() : renderCamera()}
+      {renderCamera()}
     </View>
   );
 }
