@@ -199,7 +199,22 @@ export default function App() {
 
   return (
     <View style={styles.container}>
+<<<<<<< HEAD:app/app/(tabs)/camera.tsx
       {renderCamera()}
+=======
+      < Link href='../' style={styles.back_arrow}><Ionicons name="arrow-back" size={40} color="#FF5555" /></Link>
+      <CameraView style={styles.camera} facing={facing}>
+        <View style={styles.buttonContainer}>
+        </View>
+      </CameraView> 
+      <Progress.Bar
+        progress={progress}
+        width={null}
+        height={10}
+        borderRadius={0}
+        indeterminate={indeterminate}
+      />
+>>>>>>> main:app/app/camera.tsx
     </View>
   );
 }
