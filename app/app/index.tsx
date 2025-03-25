@@ -21,12 +21,20 @@ export default function index() {
         <Text style={styles.title}>Driver{'\n'}Drowsiness{'\n'}Detection{'\n'}System</Text>
       </View>
 
-      {/*Settings Button*/}
-      < Link href='./settings' asChild>
-        <TouchableOpacity style={styles.settingsButton}>
-         <Ionicons name="settings" size={40} color="#FF5555" />
-       </TouchableOpacity>
-      </Link>
+      {/*Profile and Settings Button*/}
+      <View style={styles.header}>
+        <Link href="./profile" asChild>
+          <TouchableOpacity style={styles.iconButton}>
+            <Ionicons name="person-circle-sharp" size={45} color="black" />
+          </TouchableOpacity>
+        </Link>
+
+        <Link href="./settings" asChild>
+          <TouchableOpacity style={styles.iconButton}>
+            <Ionicons name="settings" size={45} color="#FF5555" />
+          </TouchableOpacity>
+        </Link>
+      </View>
 
       {/*Stats Button */}
       <TouchableOpacity style={styles.statsButton} 
@@ -47,6 +55,18 @@ export default function index() {
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingHorizontal: 20,
+    position: "absolute",
+    top: 50,
+  },
+
+  iconButton: {
+    padding: 10,
+  },
   logoContainer: {
     flex: 1,
     justifyContent: "center",

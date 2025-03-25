@@ -1,17 +1,14 @@
 # Driver-Drowsiness-Detection-System
 
 ## File Changes
-- index.tsx -> reset the template of the app to something basic -> comments of change in file
-
-- _layouts.tsx -> reset the template of the app to something basic -> there was a stranger header showing for each page so it's property was set to false to hide it (check this in branch merging...)
-
-- images directory -> added LOGO.png
+- camera.tsx : ahs 2 errors with comments beside them but it still runs okay. Figure out what the errors are later.
+- camera page is mostly done. Testing and debugging needed with the actual db to feed values to it
 
 Future Plans:
-1. Build Stats page
-2. Build Camera page
-3. Making the camera button route to a camera page and the settings button route to the setting page.
-4. Adding the route to the stats page.
+1. Adjust the Setting page so that it is functional.
+2. Build Profile page
+3. Build Stats page -->requires model data
+
 Extra:
 Possibly add high def product logo
-Possibly revamp color schemes, fonts, spacing, etc.
+Possibly revamp color schemes, fonts, spacing, etc, if needed/have time
