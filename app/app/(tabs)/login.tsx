@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { FIREBASE_AUTH } from '../firebase_config';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'expo-router';
 
 const Login = () => {
@@ -23,8 +23,23 @@ const Login = () => {
     }
   };
 
+  const handleSignUp = async () => {
+    setLoading(true);
+    try {
+      await createUserWithEmailAndPassword(FIREBASE_AUTH, email, password);
+      Alert.alert('Success', 'Account created!');
+      // Optional: Auto-login after signup
+      router.replace('/');
+    } catch (error: any) {
+      Alert.alert('Sign Up Failed', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
+      <Text style={styles.title}>Drowsy Driver Detection System</Text>
       <Text style={styles.title}>Login</Text>
       
       <TextInput
@@ -44,13 +59,21 @@ const Login = () => {
       />
       
       <TouchableOpacity 
-        style={styles.button} 
+        style={[styles.button, styles.loginButton]} 
         onPress={handleLogin}
         disabled={loading}
       >
         <Text style={styles.buttonText}>
           {loading ? 'Signing In...' : 'Log In'}
         </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.signupButton} 
+        onPress={handleSignUp}
+        disabled={loading}
+      >
+        <Text style={styles.signUpButtonText}>Create an Account</Text>
       </TouchableOpacity>
     </View>
   );
@@ -83,6 +106,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF5555',
     borderRadius: 10,
     alignItems: 'center',
+  },
+  loginButton: {
+    backgroundColor: '#FF5555',
+  },
+  signupButton: {
+    padding:25,
+    textAlign: 'center',
+    alignItems: 'center',
+  },
+  signUpButtonText:{
+    color: '#FF5555',
+    fontWeight: 'bold',
+    fontSize: 18,
   },
   buttonText: {
     color: '#fff',
