@@ -4,13 +4,15 @@ import {
   CameraView,
   useCameraPermissions,
 } from "expo-camera";
-import react, { useRef, useState, useEffect } from "react";
-import { Button, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useRef, useState, useEffect } from "react";
+import { Button, Pressable, StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { Link } from 'expo-router';
 import {Ionicons} from '@expo/vector-icons';
 import * as Progress from "react-native-progress";
+import { useNavigation } from "@react-navigation/native";
 
 export default function App() {
+  const navigation = useNavigation();
   const [permission, requestPermission] = useCameraPermissions();
   const ref = useRef<CameraView>(null);
   const [mode, setMode] = useState<CameraMode>("video");
@@ -207,7 +209,9 @@ export default function App() {
           indeterminate={indeterminate}
           color={progressColor}
         />
-        < Link href='/' style={styles.back_arrow}><Ionicons name="arrow-back" size={40} color="#FF5555" /></Link>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back_arrow}>
+          <Ionicons name="arrow-back" size={40} color="#FF5555" />
+        </TouchableOpacity>
       </CameraView>
     );
   };
