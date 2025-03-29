@@ -1,6 +1,9 @@
 /* Updated the entry page (homepage) to contain the product logo and name. 
 * Added buttons for the settings and camera
 * Added authentication check to redirect to login if not authenticated
+/* Edite Camera and Settings to use TouchableOpacity wrapped in the link bc of expo-router usage.
+Was recieving an error with href--> using ./settings fixed it, something to do with the path idk
+* Placeholder font for title
 *  -nage
 */
 import React, { useEffect } from "react";
@@ -8,7 +11,7 @@ import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator } fr
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from "expo-router";
 import { Link } from 'expo-router';
-import { FIREBASE_AUTH } from "../firebase_config";
+import { FIREBASE_AUTH } from "./firebase_config";
 import { onAuthStateChanged, User} from "firebase/auth";
 
 export default function Index() {
@@ -50,24 +53,27 @@ export default function Index() {
   return (
     <View style={styles.logoContainer}>
       {/*Logo*/}
-      <Image source={require("../../assets/images/LOGO.png")} style={styles.logo} />
+      <Image source={require("../assets/images/LOGO.png")} style={styles.logo} />
 
       {/*Product Title */}
       <View style={styles.titleContainer}>
         <Text style={styles.title}>Driver{'\n'}Drowsiness{'\n'}Detection{'\n'}System</Text>
       </View>
 
-      {/*Logout Button*/}
-      <TouchableOpacity 
-        style={styles.logoutButton}
-        onPress={() => FIREBASE_AUTH.signOut()}>
-        <Ionicons name="log-out-outline" size={40} color="#FF5555" />
-      </TouchableOpacity>
+      {/*Profile and Settings Button*/}
+      <View style={styles.header}>
+        <Link href="./profile" asChild>
+          <TouchableOpacity style={styles.iconButton}>
+            <Ionicons name="person-circle-sharp" size={45} color="black" />
+          </TouchableOpacity>
+        </Link>
 
-      {/*Settings Button*/}
-      <Link href='/settings' style={styles.settingsButton}>
-        <Ionicons name="settings" size={40} color="#FF5555" />
-      </Link>
+        <Link href="./settings" asChild>
+          <TouchableOpacity style={styles.iconButton}>
+            <Ionicons name="settings" size={45} color="#FF5555" />
+          </TouchableOpacity>
+        </Link>
+      </View>
 
       {/*Stats Button */}
       <TouchableOpacity style={styles.statsButton} 
@@ -77,14 +83,29 @@ export default function Index() {
       </TouchableOpacity>
 
       {/*Camera Button */}
-      <Link href='/camera' style={styles.cameraButton}>
-        <Ionicons name="camera-outline" size={40} color="black" />
-      </Link>
-    </View>
+      < Link href='./camera' asChild>
+      <TouchableOpacity style={styles.cameraButton}>
+        <Ionicons name= "camera-outline" size = {40} color="black" />
+      </TouchableOpacity>
+      </Link> 
+
+    </View> 
   );
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingHorizontal: 20,
+    position: "absolute",
+    top: 50,
+  },
+
+  iconButton: {
+    padding: 10,
+  },
   logoContainer: {
     flex: 1,
     justifyContent: "center",

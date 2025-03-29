@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { FIREBASE_AUTH } from '../firebase_config';
+import { FIREBASE_AUTH } from './firebase_config';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'expo-router';
 import { setDoc, doc } from "firebase/firestore";
-import { auth, db } from "./firebaseConfig";
+
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -64,7 +64,7 @@ const Login = () => {
         style={[styles.button, styles.loginButton]} 
         onPress={handleLogin}
         disabled={loading}
-      >
+        >
         <Text style={styles.buttonText}>
           {loading ? 'Signing In...' : 'Log In'}
         </Text>
