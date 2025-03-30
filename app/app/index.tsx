@@ -1,42 +1,53 @@
-/* Updtated the entry page (homepage) to contain the product logo and name. 
-* Added buttons for the settings and camera (non functional at the moment)
-* Added console printouts for testing purposes.
+/* Edite Camera and Settings to use TouchableOpacity wrapped in the link bc of expo-router usage.
+Was recieving an error with href--> using ./settings fixed it, something to do with the path idk
 * Placeholder font for title
 *  -nage
 */
 import React from "react";
 import { View, Text, Button, Image, StyleSheet, TouchableOpacity} from "react-native";
 import {Ionicons} from '@expo/vector-icons';
+import { useRouter } from "expo-router";
 import { Link } from 'expo-router'
 
 export default function index() {
+  const router = useRouter();
   return (
     <View style = {styles.logoContainer}>
       {/*Logo*/}
-      <Image source={require("../../assets/images/LOGO.png")} style={styles.logo} />
+      <Image source={require("../assets/images/LOGO.png")} style={styles.logo} />
 
       {/*Product Title */}
       <View style = {styles.titleContainer}>
         <Text style={styles.title}>Driver{'\n'}Drowsiness{'\n'}Detection{'\n'}System</Text>
       </View>
 
-      {/*Settings Button*/}
-      < Link href='/settings'
-        style={styles.settingsButton}>
-        <Ionicons name="settings" size={40} color="#FF5555" />
-      </Link>
+      {/*Profile and Settings Button*/}
+      <View style={styles.header}>
+        <Link href="./profile" asChild>
+          <TouchableOpacity style={styles.iconButton}>
+            <Ionicons name="person-circle-sharp" size={45} color="black" />
+          </TouchableOpacity>
+        </Link>
+
+        <Link href="./settings" asChild>
+          <TouchableOpacity style={styles.iconButton}>
+            <Ionicons name="settings" size={45} color="#FF5555" />
+          </TouchableOpacity>
+        </Link>
+      </View>
 
       {/*Stats Button */}
       <TouchableOpacity style={styles.statsButton} 
-        onPress={() => (alert('Driving Stats Button Pressed'), console.log("The stats button on the homepage was pressed!"))}>
+        onPress={() => (router.push("./stats"), console.log("The stats button on the homepage was pressed!"))}>
         <Text style={styles.statsText}>Driving Stats</Text>
         <Ionicons name="arrow-forward" size={20} color="black" />
       </TouchableOpacity>
 
       {/*Camera Button */}
-      < Link href='/camera' 
-        style={styles.cameraButton}>
+      < Link href='./camera' asChild>
+      <TouchableOpacity style={styles.cameraButton}>
         <Ionicons name= "camera-outline" size = {40} color="black" />
+      </TouchableOpacity>
       </Link> 
 
     </View> 
@@ -44,6 +55,18 @@ export default function index() {
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingHorizontal: 20,
+    position: "absolute",
+    top: 50,
+  },
+
+  iconButton: {
+    padding: 10,
+  },
   logoContainer: {
     flex: 1,
     justifyContent: "center",

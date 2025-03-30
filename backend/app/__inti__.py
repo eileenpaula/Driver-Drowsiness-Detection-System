@@ -8,7 +8,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Define the folder where uploaded files will be saved
-UPLOAD_FOLDER = 'DOWNLOAD_PATH'
+UPLOAD_FOLDER = '<YOUR DOWNLOAD FOLDER>'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Configure Flask to save uploaded files in the specified folder
@@ -69,8 +69,7 @@ def upload_video():
     ###############################
 
 
-
-    return jsonify({"message": "Video uploaded successfully", "file_path": file_path}), 200
+    return jsonify({"message": "Video uploaded successfully!", "file_path": file_path}), 200
 
 @app.route('/data', methods=['GET'])
 def get_data():
