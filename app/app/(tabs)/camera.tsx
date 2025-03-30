@@ -40,7 +40,7 @@ export default function App() {
     
       try {
         // This is the part where the actual file is sent to the backend
-        const response = await fetch('http://IP:5000/upload', {
+        const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDRESS}:5000/upload`, {
           method: 'POST',
           body: formData,  // FormData is the body of the request, containing the file
         });
@@ -58,7 +58,7 @@ export default function App() {
   const fetchDataFromBackend = async () => {
     try {
       // Replace <your-ip> with your local network IP address
-      const response = await fetch('http://IP:5000/data');
+      const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDRESS}:5000/data`);
       
       if (response.ok) {
         const responseData = await response.json();
