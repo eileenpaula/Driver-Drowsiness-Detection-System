@@ -10,6 +10,7 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [_error, set_Error] = useState('');
   const router = useRouter();
 
   const handleLogin = async () => {
@@ -20,6 +21,7 @@ const Login = () => {
       router.replace('/');
     } catch (error: any) {
       Alert.alert('Login Failed', error.message);
+      set_Error(error.message)
     } finally {
       setLoading(false);
     }
@@ -34,6 +36,7 @@ const Login = () => {
       router.replace('/');
     } catch (error: any) {
       Alert.alert('Sign Up Failed', error.message);
+      set_Error(error.message)
     } finally {
       setLoading(false);
     }
@@ -43,6 +46,8 @@ const Login = () => {
     <View style={styles.container}>
       <Text style={styles.title}>Drowsy Driver Detection System</Text>
       <Text style={styles.title}>Login</Text>
+
+      <Text style={styles.buttonText}>_error</Text>
       
       <TextInput
         style={styles.input}
