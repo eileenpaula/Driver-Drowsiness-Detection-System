@@ -2,7 +2,9 @@ import tensorflow as tf
 import numpy as np
 import cv2
 import time
+import os
 from tensorflow.keras.models import load_model
+from PIL import Image
 
 class DrowsinessDetector:
     def __init__(self,model_path,threshold_alertness=0.5,threshold_eyes=0.5, threshold_yawn=0.5):
@@ -24,7 +26,7 @@ class DrowsinessDetector:
         self.yawn_labels = ["Not Yawning", "Yawning"]
         self.eye_labels = ["Eyes Open", "Eyes Closed"]
     
-    def preprocess_frame(self, frame):
+    def preprocess_iamge(self, iamge):
         """
         Preprocess a video frame to prepare it for the model.
         
@@ -35,9 +37,16 @@ class DrowsinessDetector:
             Preprocessed frame ready for model prediction.
         """
         
-        resized_frame = cv2.resize(frame, (224, 224))
-        normalized_frame = resized_frame / 255.0
-        batch = np.expand_dims(normalized_frame, axis=0)
+        if isinstance(image,str):
+            image = cv2.imread(image)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        elif isinstance(image, Image.Image):
+            image = np.array(image)
+            
+        resized = cv2.resize(image, (124,124))
+        normalized = resized/255.0
+        batch = np.expand_dims(normalized, axis=0)
+        
         return batch
     
     def process_video_frame(self,frame):
