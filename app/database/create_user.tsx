@@ -3,15 +3,15 @@ import { setDoc, doc } from "firebase/firestore";
 import { FIREBASE_AUTH, FIREBASE_DB } from "./.config"; // Import Firebase instances
 
 type accountParams = {
+    name: string,
     email: string,
     password: string,
-    name: string,
     phone: string,
     emg_name: string,
     emg_phone: string,
 }
 
-export const create_user = async ({email, password, name, phone, emg_name, emg_phone}: accountParams) => {
+export const create_user = async ({name, email, password, phone, emg_name, emg_phone}: accountParams) => {
   try {
     // Step 1: Create user in Firebase Authentication
     const userCredential = await createUserWithEmailAndPassword(FIREBASE_AUTH, email, password);
@@ -21,6 +21,7 @@ export const create_user = async ({email, password, name, phone, emg_name, emg_p
     await setDoc(doc(FIREBASE_DB, "users", user.uid), {
       name,
       email, // Optional (Auth already stores email)
+      password, 
       phone,
       emg_name,
       emg_phone,

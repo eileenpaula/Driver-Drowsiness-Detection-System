@@ -23,17 +23,6 @@ export default function settings() {
     const handleOpenSettings = () => { Linking.openSettings() }; //technically this opens the settings for the phone and not the app because the app isn't published yet.
 
 
-    const handleLocationAccess = () => {
-        Alert.alert(
-            "Location Access",
-            "Where you at",
-            [ /* Make Sure that each option does something no -> denies access to camera yes -> allows access to camera*/
-                {text: 'No', onPress: () => console.log('location access denied'), style: 'cancel'},
-                {text: "Yes", onPress: () => console.log("location works")}, 
-            ]
-        )
-    }
-
     //Help instructions
   const helpInstructions = [
     "Please allow for camera permissions to use the detection feature.",
@@ -47,7 +36,7 @@ export default function settings() {
     <View style={styles.container}>
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back_arrow}>
         <Ionicons name="arrow-back" size={40} color="#FF5555" />
-    </TouchableOpacity>
+      </TouchableOpacity>
 
       <Text style={styles.title}>Settings</Text>
 
@@ -81,10 +70,17 @@ export default function settings() {
     
 
       {/* External Links--Report a prob send user the repos issues page.*/}
-      <Link href="https://www.nhtsa.gov/risky-driving/drowsy-driving" style={styles.link}>
-        Facts about Driving Drowsy
+      <Link href="https://www.nhtsa.gov/risky-driving/drowsy-driving" asChild>
+        <TouchableOpacity style={styles.settingButton}>
+          <Text style={styles.buttonText}>Driving Saftey</Text>
+        </TouchableOpacity>
       </Link>
-      <Link href="https://github.com/eileenpaula/Driver-Drowsiness-Detection-System/issues" style={styles.link}>Report Problem</Link>
+
+      <Link href="https://github.com/eileenpaula/Driver-Drowsiness-Detection-System/issues" asChild>
+        <TouchableOpacity style={styles.settingButton}>
+          <Text style= {styles.buttonText}>Report Problem</Text>
+        </TouchableOpacity>
+      </Link>
     </View>
   );
 }
@@ -106,8 +102,8 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   back_arrow: {
-    marginTop: 30,
-    marginLeft: 30,
+    top: 50,
+    left: 20,
   },
   settingButton: {
     backgroundColor: "white",
@@ -121,13 +117,6 @@ const styles = StyleSheet.create({
     color: "black",
     fontSize: 16,
     fontWeight: "bold",
-  },
-  link: {
-    color: "#007BFF",
-    fontSize: 16,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginTop: 15,
   },
   modalContainer: {
     flex: 1,
