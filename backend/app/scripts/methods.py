@@ -5,13 +5,13 @@ from firebase_admin import credentials, storage, auth, firestore
 from dotenv import load_dotenv
 import os, time
 
-file_path = "C:\\Users\\NeoPancakeFiles\\Desktop\\FIU\\SEMESTERS\\2025 Spring"
-load_dotenv(dotenv_path=f"{file_path}\\Driver-Drowsiness-Detection-System\\app\\.env")
-print(os.getenv("EXPO_PUBLIC_IP_ADDRESS"))
 
 
 # Initialize Firebase Admin SDK with your service account key
-def init():
+def init(): #could get removed int he future
+    # file_path = "<YOUR PROJECT PATH>"
+    # load_dotenv(dotenv_path=f"{file_path}\\Driver-Drowsiness-Detection-System\\app\\.env")
+
     cred = credentials.Certificate(os.getenv("CONF_JSON"))
     firebase_admin.initialize_app(cred, {
         'storageBucket': os.getenv("EXPO_PUBLIC_STROAGE_BUCKET") 
