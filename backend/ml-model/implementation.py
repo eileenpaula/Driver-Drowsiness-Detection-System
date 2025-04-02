@@ -4,7 +4,8 @@ import cv2
 import time
 import os
 from tensorflow.keras.models import load_model
-from PIL import Image
+
+
 
 class DrowsinessDetector:
     def __init__(self,model_path,threshold_alertness=0.5,threshold_eyes=0.5, threshold_yawn=0.5):
@@ -26,32 +27,32 @@ class DrowsinessDetector:
         self.yawn_labels = ["Not Yawning", "Yawning"]
         self.eye_labels = ["Eyes Open", "Eyes Closed"]
     
-    def preprocess_iamge(self, iamge):
+        
+    def preprocess_frame(self, frame):
         """
-        Preprocess a video frame to prepare it for the model.
+        Preprocess the input frame for model prediction.
         
         Arguments:
-        frame: Input video frame.
+            frame: Input video frame.
         
         Returns:
-            Preprocessed frame ready for model prediction.
+            Preprocessed frame as a numpy array ready for model input.
         """
         
-        if isinstance(image,str):
-            image = cv2.imread(image)
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        elif isinstance(image, Image.Image):
-            image = np.array(image)
-            
-        resized = cv2.resize(image, (124,124))
-        normalized = resized/255.0
-        batch = np.expand_dims(normalized, axis=0)
+        # Resize the image to the input size of the model
+        resized_frame = cv2.resize(frame, (224, 224))
         
-        return batch
+        # Normalize pixel values to [0, 1] range
+        normalized_frame = resized_frame / 255.0
+        
+        # Expand dimensions to match model input shape (1, height, width, channels)
+        preprocessed_frame = np.expand_dims(normalized_frame, axis=0)
+        
+        return preprocessed_frame
     
-    def process_video_frame(self,frame):
+    def process_frame(self,frame):
         """
-        Process a video frame to detect drowsiness.
+        Process a single image and return model predictions.
         
         Arguments:
         frame: Input video frame.
@@ -62,8 +63,8 @@ class DrowsinessDetector:
             eye_state: State of eyes (0-1).
         """
         
-        preprocessed_frame = self.preprocess_frame(frame)
-        predictions = self.model.predict(preprocessed_frame, verbose=0)
+        preprocessed = self.preprocess_frame(frame)
+        predictions = self.model.predict(preprocessed, verbose=0)
         
         alertness_scores = predictions[0][0] #[Alert, Low Vigilant, Very Drowsy]
         eyes_state = predictions[1][0] #[Eyes Open, Eyes Closed]
@@ -117,13 +118,196 @@ class DrowsinessDetector:
             Float representing the overall drowsiness level. (0.0-1.0)
         """
 
-        drowsy_score = alertness_scores[2]
-        very_drowsy_score = alertness_scores[3]
+        low_vigilant_score = alertness_scores[1]
+        very_drowsy_score = alertness_scores[2]
 
-        drowsiness_score = (drowsy_score + 2 * very_drowsy_score) / 3
+        drowsiness_score = (low_vigilant_score + 2 * very_drowsy_score) / 3
         return min(1.0, max(0.0,float(drowsiness_score)))  # Ensure the score is between 0 and 1
     
-    def process_video(self, video_path, output_path=None, display = True):
+    def annotate_image(self, frame, results):
         """
+        Annotate the image with predictions.
         
+        Arguments:
+            image: Input video frame.
+            results: Dictionary containing prediction results.
+        
+        Returns:
+            Annotated image.
         """
+        annotated_frame = frame.copy()
+        h, w, _ = annotated_frame.shape[:2]
+
+        overlay = annotated_frame.copy()
+        cv2.rectangle(overlay, (0, 0), (w, 150), (0, 0, 0), -1)
+        cv2.addWeighted(overlay, 0.6, annotated_frame, 0.4, 0, annotated_frame)
+
+        alertness_text = f"Alertness: {results['alertness']['label']} ({results['alertness']['confidence']:.2f})"
+        cv2.putText(annotated_frame, alertness_text, (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+        eyes_color = (0, 0, 255) if results['eyes']['closed'] else (0, 255, 0)
+        eyes_text = f"Eyes: {results['eyes']['label']} ({results['eyes']['confidence']:.2f})"
+        cv2.putText(annotated_frame, eyes_text, (20,70), cv2.FONT_HERSHEY_SIMPLEX, 0.7, eyes_color, 2)
+
+        yawn_color = (0, 0, 255) if results['yawn']['yawning'] else (0, 255, 0)
+        yawn_text = f"Yawn: {results['yawn']['label']} ({results['yawn']['confidence']:.2f})"
+        cv2.putText(annotated_frame, yawn_text, (20,110), cv2.FONT_HERSHEY_SIMPLEX, 0.7, yawn_color, 2)
+
+        drowsiness = results['drowsiness_score']
+        if drowsiness < 0.3:
+            status_color = (0, 255, 0)
+            status_text = "SAFE"
+        elif drowsiness < 0.6:
+            status_color = (0, 255, 255)
+            status_text = "WARNING"
+        else:
+            status_color = (0, 0, 255)
+            status_text = "DANGER!"
+
+        cv2.putText(annotated_frame, f"Drowsiness: {status_text} ({drowsiness:.2f})", 
+                    (w - 250, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, status_color, 3)
+        
+        return annotated_frame
+    
+    def process_video(self, video_path, output_path=None, display=False, sample_rate=1, max_frames=None):
+        """
+        Process the video and save the annotated output.
+        
+        Arguments:
+            video_path: Path to the input video file.
+            output_path: Path to save the annotated video.
+        """
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            print("Error: Could not open video at {video_path}")
+            return []
+        
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        print(f"Video info: {width}x{height} @ {fps}fps, {total_frames}total frames")
+
+        writer = None
+        if output_path:
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')
+            writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+
+        results = []
+        frame_count = 0
+        processed_frames = 0
+
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            frame_count += 1
+
+            if frame_count % sample_rate != 0:
+                continue
+
+            result = self.process_frame(frame)
+            results.append(result)
+
+            annotated_frame = self.annotate_image(frame, result)
+
+            if writer:
+                writer.write(annotated_frame)
+
+            if display:
+                cv2.imshow("Drowsiness Detection", annotated_frame)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+
+            processed_frames += 1
+
+            if max_frames and processed_frames >= max_frames:
+                break
+
+        print(f"Processed {processed_frames} out of {total_frames} frames.")
+
+        cap.release()
+        if writer:
+            writer.release()
+        if display:
+            cv2.destroyAllWindows()
+
+        return results
+    
+    def analyze_video_results(self, results):
+        """
+        Analyze the results of the processed video.
+        
+        Arguments:
+            results: List of dictionaries containing prediction results for each frame.
+        
+        Returns:
+            Dictionary containing analysis results.
+        """
+        if not results:
+            return {"error": "No results to analyze."}
+
+        drowsiness_scores = [result['overall_drowsiness'] for result in results]
+        alertness_labels = [result['alertness']['label'] for result in results]
+        eyes_closed_frames = sum(1 for result in results if result['eyes']['closed'])
+        yawning_frames = sum(1 for result in results if result['yawn']['yawning'])
+
+        total_frames = len(results)
+        eyes_closed_percentage = (eyes_closed_frames / total_frames) * 100
+        yawning_percentage = (yawning_frames / total_frames) * 100
+
+        alertness_counts = {}
+        for label in self.alertness_labels:
+            alertness_counts[label] = alertness_labels.count(label)
+
+        alertness_percentages = {label: (count / total_frames) * 100 
+                                 for label, count in alertness_counts.items()}
+        
+        threshold = 0.6
+        min_episode_length = 5
+
+        episodes = []
+        current_episode = None
+
+        for i, score in enumerate(drowsiness_scores):
+            if score >= threshold:
+                if current_episode is None:
+                    current_episode = {"start": i, "scores": [score]}
+                else:
+                    current_episode["scores"].append(score)
+            else:
+                if current_episode is not None:
+                    if len(current_episode["scores"]) >= min_episode_length:
+                        current_episode["end"] = i - 1
+                        current_episode['duration'] = current_episode["end"] - current_episode["start"] +1
+                        current_episode['average_score'] = sum(current_episode["scores"]) / len(current_episode["scores"])
+                        episodes.append(current_episode)
+                    current_episode = None
+
+        if current_episode is not None and len(current_episode["scores"]) >= min_episode_length:
+            current_episode["end"] = len(drowsiness_scores) - 1
+            current_episode['duration'] = current_episode["end"] - current_episode["start"] +1
+            current_episode['average_score'] = sum(current_episode["scores"]) / len(current_episode["scores"])
+            episodes.append(current_episode)
+
+        analysis = {
+            "total_frames": total_frames,
+            "avg_drowsiness": sum(drowsiness_scores) / total_frames,
+            "max_drowsiness": max(drowsiness_scores),
+            "eyes_closed_percentage": eyes_closed_percentage,
+            "yawning_percentage": yawning_percentage,
+            "alertness_counts": alertness_counts,
+            "alertness_percentages": alertness_percentages,
+            "drowsiness_episodes": {
+                "count": len(episodes),
+                "details": episodes
+            }
+        }
+
+        return analysis
+
+
+
+            
