@@ -2,13 +2,16 @@ from flask import Flask, request, jsonify, send_from_directory
 import os, cv2
 from flask_cors import CORS
 from random import randint
-
+from scripts.methods import init, verify_token, upload_file_to_storage, update_video_firestore
+import scripts.methods
+from uuid import uuid4
 
 app = Flask(__name__)
 CORS(app)
+init()
 
 # Define the folder where uploaded files will be saved
-UPLOAD_FOLDER = '<YOUR DOWNLOAD FOLDER>'
+UPLOAD_FOLDER = '../DOWNLOAD'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Configure Flask to save uploaded files in the specified folder
@@ -22,6 +25,7 @@ def upload_video():
     
     # Get the video file from the request
     video_file = request.files['video']
+    authentication = verify_token(request.headers["Autherization"])
 
 
     # If no file was selected
@@ -32,6 +36,10 @@ def upload_video():
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], video_file.filename)
     video_file.save(file_path)
 
+    storage_path = f"videos/{authentication['uid']}/{uuid4()}.mov"
+    blob = upload_file_to_storage(file_path, storage_path)
+    video_url = blob.public_url
+    update_video_firestore(video_url, authentication['uid'])
     
     ################################
 

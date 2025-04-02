@@ -10,6 +10,8 @@ import { Link } from 'expo-router';
 import {Ionicons} from '@expo/vector-icons';
 import * as Progress from "react-native-progress";
 import { useNavigation } from "@react-navigation/native";
+import { DocumentData } from "firebase/firestore"; 
+import { FIREBASE_AUTH, FIREBASE_DB } from "../database/.config";
 
 export default function App() {
   const navigation = useNavigation();
@@ -22,9 +24,15 @@ export default function App() {
   const [indeterminate, setIndeterminate] = useState(true);
   const [waiting, setWaiting] = useState(true);
   const [data, setData] = useState(10);
-  const [recordDuration, setRecordDuration] = useState(3);
-  const [waitDuration, setWaitDuration] = useState(10)
+  const [recordDuration, setRecordDuration] = useState(2);
+  const [waitDuration, setWaitDuration] = useState(5)  
+  const [activeUser, setActiveUser] = useState('');
 
+  useEffect(() => {
+      const auth = FIREBASE_AUTH
+      const user = auth.currentUser
+      setActiveUser(user)
+  }, []);
 
   const sendVideoToBackend = async (uri: string) => {
       const formData = new FormData();
@@ -41,8 +49,11 @@ export default function App() {
     
       try {
         // This is the part where the actual file is sent to the backend
-        const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDRESS}:5000/upload`, {
+        const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDR}:5000/upload`, {
           method: 'POST',
+          headers: {
+            "Autherization": `${activeUser.stsTokenManager.accessToken}`
+          },
           body: formData,  // FormData is the body of the request, containing the file
         });
     
