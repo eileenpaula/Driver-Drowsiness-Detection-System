@@ -5,6 +5,12 @@ import { Stack } from "expo-router";
 export default function RootLayout() {
   return (
     <Stack>
+      <Stack.Screen name ="login"
+      options={{headerShown: false}}
+      />
+      <Stack.Screen name ="signup"
+      options={{headerShown: false}}
+      />
       <Stack.Screen name ="index"
       options={{headerShown: false}}
       />
@@ -14,8 +20,8 @@ export default function RootLayout() {
       <Stack.Screen name ="settings"
       options={{headerShown: false}}
       />
-      <Stack.Screen name ="report_problem"
-      options={{headerShown: false}}
+      <Stack.Screen name ="profile"
+      options={{headerTitle: "Your Profile"}}
       />
       <Stack.Screen name ="camera"
       options={{headerShown: false}}

@@ -3,7 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "expo start",
+    "start": "concurrently \"expo start\" \"python3 ../backend/app/__init__.py\" \"Bash run.sh\"",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
@@ -21,6 +21,7 @@
     "@react-navigation/native": "^7.0.15",
     "@react-navigation/stack": "^7.1.2",
     "@tensorflow/tfjs": "^4.22.0",
+    "concurrently": "^9.1.2",
     "dotenv": "^16.4.7",
     "expo": "^52.0.39",
     "expo-blur": "~14.0.3",
