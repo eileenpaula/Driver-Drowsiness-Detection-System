@@ -4,13 +4,17 @@ import {
   CameraView,
   useCameraPermissions,
 } from "expo-camera";
-import react, { useRef, useState, useEffect } from "react";
-import { Button, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useRef, useState, useEffect } from "react";
+import { Button, Pressable, StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { Link } from 'expo-router';
 import {Ionicons} from '@expo/vector-icons';
 import * as Progress from "react-native-progress";
+import { useNavigation } from "@react-navigation/native";
+import { DocumentData } from "firebase/firestore"; 
+import { FIREBASE_AUTH, FIREBASE_DB } from "../database/.config";
 
 export default function App() {
+  const navigation = useNavigation();
   const [permission, requestPermission] = useCameraPermissions();
   const ref = useRef<CameraView>(null);
   const [mode, setMode] = useState<CameraMode>("video");
@@ -20,9 +24,15 @@ export default function App() {
   const [indeterminate, setIndeterminate] = useState(true);
   const [waiting, setWaiting] = useState(true);
   const [data, setData] = useState(10);
-  const [recordDuration, setRecordDuration] = useState(15);
-  const [waitDuration, setWaitDuration] = useState(10)
+  const [recordDuration, setRecordDuration] = useState(2);
+  const [waitDuration, setWaitDuration] = useState(5)  
+  const [activeUser, setActiveUser] = useState('');
 
+  useEffect(() => {
+      const auth = FIREBASE_AUTH
+      const user = auth.currentUser
+      setActiveUser(user)
+  }, []);
 
   const sendVideoToBackend = async (uri: string) => {
       const formData = new FormData();
@@ -39,8 +49,11 @@ export default function App() {
     
       try {
         // This is the part where the actual file is sent to the backend
-        const response = await fetch('http://<IP>:5000/upload', {
+        const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDR}:5000/upload`, {
           method: 'POST',
+          headers: {
+            "Autherization": `${activeUser.stsTokenManager.accessToken}`
+          },
           body: formData,  // FormData is the body of the request, containing the file
         });
     
@@ -57,7 +70,7 @@ export default function App() {
   const fetchDataFromBackend = async () => {
     try {
       // Replace <your-ip> with your local network IP address
-      const response = await fetch('http://<IP>:5000/data');
+      const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDRESS}:5000/data`);
       
       if (response.ok) {
         const responseData = await response.json();
@@ -207,7 +220,9 @@ export default function App() {
           indeterminate={indeterminate}
           color={progressColor}
         />
-        < Link href='/' style={styles.back_arrow}><Ionicons name="arrow-back" size={40} color="#FF5555" /></Link>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back_arrow}>
+          <Ionicons name="arrow-back" size={40} color="#FF5555" />
+        </TouchableOpacity>
       </CameraView>
     );
   };
