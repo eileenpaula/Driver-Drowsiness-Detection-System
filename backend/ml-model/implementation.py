@@ -1,14 +1,13 @@
-import tensorflow as tf
+#import tensorflow as tf
 import numpy as np
-import cv2
-import time
-import os
-from tensorflow.keras.models import load_model
+import cv2, time, os, torch
+from PIL import Image
+#from tensorflow.keras.models import load_model
 
 
 
-class DrowsinessDetector:
-    def __init__(self,model_path,threshold_alertness=0.5,threshold_eyes=0.5, threshold_yawn=0.5):
+class DrowsinessDetctor:
+    def __init__(self,model_path,confidence_threshold=0.5, iou_threshold=0.45, device='cpu'):
         """
         Initialize the DrowsinessDetector with the pretrained model."
         
@@ -19,6 +18,10 @@ class DrowsinessDetector:
         threshold_yawn: Threshold for determining if yawning.
         
         """
+
+        if model_path.endswith('.h5'):
+            self.model = torch.hub.load(model_path, device=device)
+
         self.model = load_model(model_path)
         self.threshold_alertness = threshold_alertness
         self.threshold_eyes = threshold_eyes
@@ -307,7 +310,3 @@ class DrowsinessDetector:
         }
 
         return analysis
-
-
-
-            
