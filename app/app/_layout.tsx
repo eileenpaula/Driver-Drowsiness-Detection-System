@@ -21,7 +21,7 @@ export default function RootLayout() {
       options={{headerShown: false}}
       />
       <Stack.Screen name ="profile"
-      options={{headerTitle: "Your Profile"}}
+      options={{headerShown: false}}
       />
       <Stack.Screen name ="camera"
       options={{headerShown: false}}
