@@ -12,6 +12,7 @@ import * as Progress from "react-native-progress";
 import { useNavigation } from "@react-navigation/native";
 import { DocumentData } from "firebase/firestore"; 
 import { FIREBASE_AUTH, FIREBASE_DB } from "../database/.config";
+import { Audio } from 'expo-av';
 
 export default function App() {
   const navigation = useNavigation();
@@ -27,6 +28,33 @@ export default function App() {
   const [recordDuration, setRecordDuration] = useState(2);
   const [waitDuration, setWaitDuration] = useState(5)  
   const [activeUser, setActiveUser] = useState('');
+  const [sound, setSound] = useState();
+
+  async function playSound() {
+
+    await Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true, // Ensure sound plays even in silent mode on iOS
+      allowsRecordingIOS: false
+    });
+
+    console.log('Loading Sound');
+     const { sound } = await Audio.Sound.createAsync(
+       require('../assets/test_audio.mp3')
+    );
+    setSound(sound);
+
+    console.log('Playing Sound');
+    await  sound.playAsync(); 
+  }
+
+  useEffect(() => {
+    return sound
+      ? () => {
+          console.log('Unloading Sound');
+           sound.unloadAsync(); 
+        }
+      : undefined;
+  }, [sound]);
 
   useEffect(() => {
       const auth = FIREBASE_AUTH
@@ -70,11 +98,14 @@ export default function App() {
   const fetchDataFromBackend = async () => {
     try {
       // Replace <your-ip> with your local network IP address
-      const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDRESS}:5000/data`);
+      const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDR}:5000/data`);
       
       if (response.ok) {
         const responseData = await response.json();
         setData(responseData.waitDuration)
+        if(responseData.waitDuration < 20){
+          playSound() 
+        }
         console.log("Backend response: ",responseData)
         console.log("Upcoming wait time: ", data)
       } else {
