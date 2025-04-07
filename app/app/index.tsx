@@ -19,7 +19,6 @@ export default function Index() {
   const [loadFonts]=useFonts({
     'IS': require('../assets/fonts/Instrument_Sans.ttf'),
     'ISBold': require('../assets/fonts/InstrumentSans-Bold.ttf'),
-    'Headline': require('../assets/fonts/Headline.ttf')
   })
   const router = useRouter();
   const [user, setUser] = React.useState<User | null>(null);
