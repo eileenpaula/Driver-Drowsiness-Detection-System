@@ -1,9 +1,9 @@
 from flask import Flask, request, jsonify, send_from_directory
-import os, cv2
+import os, cv2 
 from flask_cors import CORS
 from random import randint
 from scripts.methods import init, verify_token, upload_file_to_storage, update_video_firestore
-import scripts.methods
+# import scripts.methods
 from uuid import uuid4
 
 app = Flask(__name__)
@@ -38,8 +38,8 @@ def upload_video():
 
     storage_path = f"videos/{authentication['uid']}/{uuid4()}.mov"
     blob = upload_file_to_storage(file_path, storage_path)
-    video_url = blob.public_url
-    update_video_firestore(video_url, authentication['uid'])
+    # video_url = blob.public_url
+    update_video_firestore(storage_path, authentication['uid'])
     
     ################################
 
