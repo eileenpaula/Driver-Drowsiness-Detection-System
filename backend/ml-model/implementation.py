@@ -1,13 +1,10 @@
-#import tensorflow as tf
+import tensorflow as tf
 import numpy as np
-import cv2, time, os, torch
-from PIL import Image
-#from tensorflow.keras.models import load_model
-
+import cv2, time, os
 
 
 class DrowsinessDetctor:
-    def __init__(self,model_path,confidence_threshold=0.5, iou_threshold=0.45, device='cpu'):
+    def __init__(self,model_path,confidence_threshold=0.5):
         """
         Initialize the DrowsinessDetector with the pretrained model."
         
@@ -19,13 +16,14 @@ class DrowsinessDetctor:
         
         """
 
-        if model_path.endswith('.h5'):
-            self.model = torch.hub.load(model_path, device=device)
+        try:
+            self.model = tf.keras.models.load_model(model_path)
+            print("Model loaded successfully.")
+            self.model.summary()
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            raise RuntimeError(f"Failed to load model from {model_path}.")
 
-        self.model = load_model(model_path)
-        self.threshold_alertness = threshold_alertness
-        self.threshold_eyes = threshold_eyes
-        self.threshold_yawn = threshold_yawn
         self.alertness_labels = ["Alert", "Low Vigilant", "Very Drowsy"]
         self.yawn_labels = ["Not Yawning", "Yawning"]
         self.eye_labels = ["Eyes Open", "Eyes Closed"]
@@ -44,14 +42,19 @@ class DrowsinessDetctor:
         
         # Resize the image to the input size of the model
         resized_frame = cv2.resize(frame, (224, 224))
+
+        # Convert the image from BGR to RGB format
+        rgb_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
         
         # Normalize pixel values to [0, 1] range
-        normalized_frame = resized_frame / 255.0
+        normalized_frame = rgb_frame / 255.0
         
         # Expand dimensions to match model input shape (1, height, width, channels)
         preprocessed_frame = np.expand_dims(normalized_frame, axis=0)
+
+        batch = np.expand__dims(normalized_frame, axis=0)
         
-        return preprocessed_frame
+        return batch
     
     def process_frame(self,frame):
         """
@@ -69,11 +72,23 @@ class DrowsinessDetctor:
         preprocessed = self.preprocess_frame(frame)
         predictions = self.model.predict(preprocessed, verbose=0)
         
-        alertness_scores = predictions[0][0] #[Alert, Low Vigilant, Very Drowsy]
-        eyes_state = predictions[1][0] #[Eyes Open, Eyes Closed]
-        yawn_state = predictions[2][0] #[Not Yawning, Yawning]
+        if isinstance(predictions, list):
+            if len(predictions) >= 3:
+                alertness_scores = predictions[0][0] # [Alert, Low Vigilant, Very Drowsy]
+                yawn_state = predictions[1][0] # [Not Yawning, Yawning]
+                eyes_state = predictions[2][0] # [Eyes Open, Eyes Closed]
+            else: 
+                print(f"Warning: Expected 3 outputs, but got {len(predictions)}. Using default values.")
+                drowsiness_scores = np.array([0.8, 0.1, 0.1]) #default to alert
+                yawn_state = np.array([0.9, 0.1]) #default to not yawning
+                eyes_state = np.array([0.9, 0.1]) #default to eyes open
+        else:
+            print("Warning: Expected list of outputs but got single output. Using default values.")
+            alertness_scores = np.array([0.8, 0.1, 0.1]) #default to alert
+            yawn_state = np.array([0.9, 0.1]) #default to not yawning
+            eyes_state = np.array([0.9, 0.1]) #default to eyes open
 
-        alertness_idx = np.argmax(alertness_scores)
+        alertness_idx = np.argmax(drowsiness_scores)
         alertness_label = self.alertness_labels[alertness_idx]
         alertness_confidence = alertness_scores[alertness_idx]
 
@@ -105,7 +120,7 @@ class DrowsinessDetctor:
                 "confidence": float(yawn_confidence),
                 "raw_scores": yawn_state.tolist()
             },
-            "overall_drowsiness": self.calculate_drowsiness(alertness_scores)
+            "overall_drowsiness": self.calculate_drowsiness(alertness_scores),
         }
 
         return results
@@ -127,7 +142,7 @@ class DrowsinessDetctor:
         drowsiness_score = (low_vigilant_score + 2 * very_drowsy_score) / 3
         return min(1.0, max(0.0,float(drowsiness_score)))  # Ensure the score is between 0 and 1
     
-    def annotate_image(self, frame, results):
+    def annotate_frame(self, frame, results):
         """
         Annotate the image with predictions.
         
@@ -139,7 +154,7 @@ class DrowsinessDetctor:
             Annotated image.
         """
         annotated_frame = frame.copy()
-        h, w, _ = annotated_frame.shape[:2]
+        h, w = annotated_frame.shape[:2]
 
         overlay = annotated_frame.copy()
         cv2.rectangle(overlay, (0, 0), (w, 150), (0, 0, 0), -1)
@@ -190,7 +205,7 @@ class DrowsinessDetctor:
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        print(f"Video info: {width}x{height} @ {fps}fps, {total_frames}total frames")
+        #print(f"Video info: {width}x{height} @ {fps}fps, {total_frames}total frames")
 
         writer = None
         if output_path:
@@ -214,7 +229,7 @@ class DrowsinessDetctor:
             result = self.process_frame(frame)
             results.append(result)
 
-            annotated_frame = self.annotate_image(frame, result)
+            annotated_frame = self.annotate_frame(frame, result)
 
             if writer:
                 writer.write(annotated_frame)
