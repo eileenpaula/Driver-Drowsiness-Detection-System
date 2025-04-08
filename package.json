@@ -1,15 +1,5 @@
 {
   "dependencies": {
-    "@react-navigation/native": "^7.1.6",
-    "expo-camera": "~16.0.18",
-    "expo-router": "^4.0.20",
-    "firebase": "^11.6.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "react-native-gesture-handler": "^2.25.0",
-    "react-native-progress": "^5.0.1"
-  },
-  "devDependencies": {
-    "@types/react": "^19.1.0"
+    "firebase": "^11.5.0"
   }
 }
