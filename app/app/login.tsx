@@ -21,7 +21,7 @@ const Login = () => {
       router.replace('/');
     } catch (error: any) {
       Alert.alert('Login Failed', error.message);
-      set_Error(error.message);
+      set_Error(error.message)
     } finally {
       setLoading(false);
     }
@@ -37,8 +37,7 @@ const Login = () => {
     } catch (error: any) {
       Alert.alert('Sign Up Failed', error.message);
       set_Error(error.message)
-    }
-    finally {
+    } finally {
       setLoading(false);
     }
   };
@@ -66,8 +65,8 @@ const Login = () => {
         secureTextEntry
       />
       
-      <TouchableOpacity
-       style={[styles.button, styles.loginButton]} 
+      <TouchableOpacity 
+        style={[styles.button, styles.loginButton]} 
         onPress={handleLogin}
         disabled={loading}
         >
@@ -76,13 +75,13 @@ const Login = () => {
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-      style={styles.signupButton}
-      onPress={handleSignUp}
-      disabled={loading}
+      <TouchableOpacity 
+        style={styles.signupButton} 
+        onPress={handleSignUp}
+        disabled={loading}
       >
         <Text style={styles.signUpButtonText}>Create an Account</Text>
-        </TouchableOpacity>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -101,7 +100,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   input: {
-    color: "black",
     marginVertical: 10,
     padding: 15,
     borderWidth: 1,
@@ -120,7 +118,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF5555',
   },
   signupButton: {
-    padding: 25,
+    padding:25,
     textAlign: 'center',
     alignItems: 'center',
   },
@@ -134,7 +132,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 18,
   },
-  
 });
 
 export default Login;
