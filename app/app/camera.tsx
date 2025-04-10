@@ -13,8 +13,7 @@ import { useNavigation } from "@react-navigation/native";
 import { DocumentData, setDoc, doc } from "firebase/firestore"; 
 import { FIREBASE_AUTH, FIREBASE_DB } from "../database/.config";
 import { Audio } from 'expo-av';
-import { getStorage, ref, uploadBytes, uploadBytesResumable } from 'firebase/storage'
-import {v4 as uuidv4} from 'uuid'
+import { getStorage, ref, uploadBytesResumable } from 'firebase/storage'
 import uuid from 'react-native-uuid';
 
 export default function App() {
@@ -42,7 +41,7 @@ export default function App() {
 
     console.log('Loading Sound');
      const { sound } = await Audio.Sound.createAsync(
-       require('../assets/test_audio.mp3')
+       require('../assets/annoying_ring.mp3')
     );
     setSound(sound);
 
@@ -124,23 +123,28 @@ export default function App() {
 
   const fetchDataFromBackend = async () => {
     try {
+      // console.log('inside fetchdata',process.env.EXPO_PUBLIC_IP_ADDR)
       // Replace <your-ip> with your local network IP address
-      const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDR}:5000/data`);
-      
+      // const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDR}:5000/data`);
+      const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDR}:5000/data`, {
+        method: 'POST',
+        headers: {
+          "Autherization": `${activeUser.stsTokenManager.accessToken}`
+        }
+      })
+
       if (response.ok) {
         const responseData = await response.json();
         setData(responseData.waitDuration)
         if(responseData.waitDuration < 20){
           playSound() 
         }
-        console.log("Backend response: ",responseData)
-        console.log("Upcoming wait time: ", data)
+        console.log('Video uploaded successfully');
       } else {
         throw new Error('Failed to fetch data');
       }
     } catch (error) {
       console.error('Error:', error);
-      // Alert.alert('Error', 'Failed to fetch data from backend');
     }
   };
 
@@ -155,9 +159,8 @@ export default function App() {
         setRecording(true);
         console.log("New recording started...");
         const video = await camRef.current?.recordAsync();
-        console.log({ video });
-        // await sendVideoToBackend(video?.uri || "")
-        send_to_storage(video?.uri || "")
+        console.log({ video })
+        // send_to_storage(video?.uri || "")
       }
     }else{
       console.log("Permission not granted to record video")
