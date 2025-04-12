@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Button, TextInput } from "react-native";
 import { useRouter } from "expo-router";
 import { getUserInfo } from "../database/get_data";
-import { updateUserInfo } from "@/database/update_data";
+import { updateUserInfo, deleteUser } from "@/database/update_data";
 import { DocumentData } from "firebase/firestore";
 import { logout_user } from "@/database/user_session";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,6 +11,8 @@ export default function ProfilePage() {
     const [userInfo, setUserInfo] = useState<DocumentData | null>(null);
     const router = useRouter();
     const [modalVisible, setModalVisible] = React.useState(false);
+    const [deleteModalVisible, setDeleteModalVisible] = React.useState(false);
+    const [pwCorrect, setPwCorrect] = React.useState(false)
     
     useEffect(() => {
         async function fetchUserData() {
@@ -41,6 +43,12 @@ export default function ProfilePage() {
             alert("Failed to update profile.")
         }
     }
+
+    const handleDeleteUser = async (password: string) =>{
+        setPwCorrect(userInfo?.password === password)
+        // return userInfo?.password ==
+    }
+
 
     return (
         <View style={styles.container}>
@@ -109,6 +117,35 @@ export default function ProfilePage() {
                     <TouchableOpacity style={styles.logoutButton} onPress={() => (logout_user(), router.replace("./login"))}>
                         <Text style={styles.buttonText}>Logout</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity style={styles.logoutButton} onPress={() => (setDeleteModalVisible(true))}>
+                        <Text style={styles.buttonText}>Delete User</Text>
+                    </TouchableOpacity>
+
+
+                    <Modal visible={deleteModalVisible} animationType="slide" transparent={true}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>Delete Account</Text>
+
+                            <TextInput
+                                style={styles.editInput}
+                                placeholder="Enter Password"
+                                onChangeText={(text) => setPwCorrect(userInfo?.password === text)}
+                            />
+                            
+                            <View style={{ flexDirection: "row", marginTop: 20 }}>
+                                <Button title="Confirm" onPress={() => {if(pwCorrect) {
+                                                                            deleteUser(), 
+                                                                            router.replace("./login")}
+                                                                        }} />
+                                <View style={{ width: 20 }} />
+                                <Button title="Cancel" color="red" onPress={() => setDeleteModalVisible(false)} />
+                            </View>
+                            </View>
+                        </View>
+                        </Modal>
+
+
                    
                 </View>
             ) : (<Text style={styles.loadingText}>Loading user info...</Text>)}
