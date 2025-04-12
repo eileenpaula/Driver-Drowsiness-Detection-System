@@ -3,7 +3,7 @@ import numpy as np
 import os
 import cv2
 import matplotlib.pyplot as plt
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from keras.preprocessing.image import ImageDataGenerator
 from sklearn.metrics import classification_report, confusion_matrix
 
 model = tf.keras.models.load_model("/root/ddds/multi_task_drowsiness_model.h5")

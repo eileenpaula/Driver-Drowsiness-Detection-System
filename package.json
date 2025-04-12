@@ -1,8 +1,13 @@
 {
   "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-react-native": "^1.0.0",
+    "expo-gl": "^13.6.0",
+    "expo-gl-cpp": "^11.4.0",
     "firebase": "^11.5.0"
   },
   "devDependencies": {
+    "@types/react": "~18.3.12",
     "typescript": "^5.8.3"
   }
 }

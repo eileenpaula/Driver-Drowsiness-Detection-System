@@ -139,7 +139,7 @@ class DrowsinessDetctor:
         low_vigilant_score = alertness_scores[1]
         very_drowsy_score = alertness_scores[2]
 
-        drowsiness_score = (low_vigilant_score + 2 * very_drowsy_score) / 3
+        drowsiness_score = (low_vigilant_score + 2 * very_drowsy_score) / 3 #normalize arrays to 0,0,1 and then divide by frames 
         return min(1.0, max(0.0,float(drowsiness_score)))  # Ensure the score is between 0 and 1
     
     def annotate_frame(self, frame, results):
