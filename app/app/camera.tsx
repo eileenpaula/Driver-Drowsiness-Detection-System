@@ -15,6 +15,29 @@ import { FIREBASE_AUTH, FIREBASE_DB } from "../database/.config";
 import { Audio } from 'expo-av';
 import { getStorage, ref, uploadBytesResumable } from 'firebase/storage'
 import uuid from 'react-native-uuid';
+import * as tf from '@tensorflow/tfjs';
+import { bundleResourceIO } from '@tensorflow/tfjs-react-native';
+import * as FileSystem from 'expo-file-system';
+import { Float } from "react-native/Libraries/Types/CodegenTypes";
+
+interface DrowsinessResult{
+  alertLevel: string;
+  eyesState: string;
+  yawnState: string;
+  drowsinessScore: number;
+  timestamp?: number;
+  rawSccores?:{
+    drowsiness: number[];
+    eyes: number[];
+    yawn: number[];
+  };
+  normalizedScores?: {
+    drowsiness: number[];
+    eyes: number[];
+    yawn: number[];
+  };
+}
+
 
 export default function App() {
   const router = useRouter();
@@ -31,6 +54,17 @@ export default function App() {
   const [waitDuration, setWaitDuration] = useState(5)  
   const [activeUser, setActiveUser] = useState('');
   const [sound, setSound] = useState();
+  const [isModelReady, setIsModelReady] = useState(false);
+  const [model, setModel] = useState<tf.LayersModel | null>(null);
+  const [alertLevel, setAlertLevel] = useState('Alert');
+  const [eyesState, setEtesState] = useState('Eyes Open');
+  const [yawnState, setYawnState] = useState('Not Yawning');
+  const [drowsinessScore, setDrowsinessScore] = useState(0);
+  const [isProcessingFrame, setIsProcessingFrame] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
+
+  const IMAGE_SIZE = 224;
+  const DROWSINESS_THRESHOLD = 0.6; 
 
   async function playSound() {
 
@@ -289,11 +323,196 @@ export default function App() {
     );
   };
 
+  const normalizeArray = (array: number[] | Float32Array): number[] => {
+    const result = new Array(arr.length).fill(0);
+    const maxIndex = Array.from(array).indexOf(Math.max(...Array.from(array)));
+    result[maxIndex] = 1;
+    return result;
+  }
+
+  const setupTensorFlow = async () => {
+    try{
+      await tf.ready();
+      console.log("TensorFlow is ready!");
+
+      console.log('Loading drowsiness detection model...');
+
+      try{
+        const modelJson = require('../assets/model/model.json');
+        const modelWeights = require('../assets/model/weights.bin');
+        const loadedModel = await tf.loadLayersModel(bundleResourceIO(modelJson, modelWeights));
+
+        const dummyInput = tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
+        const warmupResult = await loadedModel.predict(dummyInput);
+
+        if(Array.isArray(warmupResult)){
+          warmupResult.forEach(tensor => tensor.dispose());
+        } else {
+          warmupResult.dispose();
+        }
+
+        dummyInput.dispose();
+        setModel(loadedModel);
+        setIsModelReady(true);
+        console.log("Model loaded and warmed up successfully!");
+
+      }catch (e){
+        console.error("Error loading model:", e);
+      }
+    } catch (error) {
+      console.error("Error setting up TensorFlow:", error);
+    }
+  };
+
+  const processFrameForDrowsiness = async (frameUri: string): Promise<DrowsinessResult | null> => {
+
+    if(!isModelReady || isProcessingFrame || !model) {
+      return null;
+    }
+
+    setIsProcessingFrame(true);
+    try {
+
+      const imgB64 = await FileSystem.readAsStringAsync(frameUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const imgBuffer = tf.util.encodeString(imgB64, 'base64').buffer;
+      const raw = new Uint8Array(imgBuffer);
+      const imgTensor = decodeJpeg(raw);
+
+      let processedTensor = tf.image.resizeBilinear(imgTensor, [IMAGE_SIZE, IMAGE_SIZE]);
+      processedTensor = tf.div(processedTensor, 255.0); // Normalize to [0, 1]
+      processedTensor = tf.expandDims(processedTensor, 0);
+
+      const predictions = await model.predict(processedTensor);
+
+      let rawDrowsinessScores: Float32Array | number[], 
+          rawEyesStateScores: Float32Array | number[], 
+          rawYawnStateScores: Float32Array | number[];
+
+      if (Array.isArray(predictions)) {
+        rawDrowsinessScores = await (predictions[0] as tf.Tensor).data();
+        rawEyesStateScores = await (predictions[1] as tf.Tensor).data();
+        rawYawnStateScores = await (predictions[2] as tf.Tensor).data();
+
+        predictions.forEach(tensor => tensor.dispose());
+      } else {
+        const allScores = await predictions.data();
+        rawDrowsinessScores = Array.from(allScores.slice(0, 3));
+        rawEyesStateScores = Array.from(allScores.slice(3, 5));
+        rawYawnStateScores = Array.from(allScores.slice(5, 7));
+        predictions.dispose();
+      }
+
+      const drowsinessScores = normalizeArray(rawDrowsinessScores);
+      const eyesStateScores = normalizeArray(rawEyesStateScores);
+      const yawnStateScores = normalizeArray(rawYawnStateScores);
+
+      const alertnessLabels = ['Alert', 'Low Vigilant', 'Very Drowsy'];
+      const eyesLabels = ['Eyes Open', 'Eyes Closed'];
+      const yawnLabels = ['Not Yawning', 'Yawning'];
+
+      const alertnessIndex = drowsinessScores.indexOf(1);
+      const eyesIndex = eyesStateScores.indexOf(1);
+      const yawnIndex = yawnStateScores.indexOf(1);
+
+      let calculated: number;
+      if(drowsinessScores[2] ===1){
+        calculated = 1.0;
+
+      } else if(drowsinessScores[1] === 1){
+        calculated = 0.5;
+      } else{
+        calculated = 0.0;
+      }
+
+      setAlertLevel(alertnessLabels[alertnessIndex]);
+      setEtesState(eyesLabels[eyesIndex]);
+      setYawnState(yawnLabels[yawnIndex]);
+      setDrowsinessScore(calculated);
+
+      if (calculated > DROWSINESS_THRESHOLD) {
+        setShowAlert(true);
+        playSound();
+      }
+
+      imgTensor.dispose();
+      processedTensor.dispose();
+      return {
+        alertLevel: alertnessLabels[alertnessIndex],
+        eyesState: eyesLabels[eyesIndex],
+        yawnState: yawnLabels[yawnIndex],
+        drowsinessScore: calculated,
+        rawSccores: {
+          drowsiness: Array.from(rawDrowsinessScores),
+          eyes: Array.from(rawEyesStateScores),
+          yawn: Array.from(rawYawnStateScores)
+        },
+        normalizedScores: {
+          drowsiness: drowsinessScores,
+          eyes: eyesStateScores,
+          yawn: yawnStateScores,
+        },
+      };
+
+    } catch (error) {
+      console.error("Error processing frame:", error);
+      return null;
+    } finally{
+      setIsProcessingFrame(false);
+    }
+
+  };
+
+  const captureFrameForDrowsiness = async (): Promise<void> => {
+    if(!isModelReady || !camRef.current) {
+      return;
+    }
+
+    try{
+      const options = { quality: 0.5, base64: true, skipProcessing: true };
+      const data = await camRef.current.takePictureAsync(options);
+
+      const drowsinessResults = await processFrameForDrowsiness(data.uri);
+
+      if(drowsinessResults) {
+        setDoc(doc(FIREBASE_DB, "users", activeUser.uid, 'drowsiness', uuid.v4()), {
+          ...drowsinessResults,
+          timestamp: Date.now(),
+        });
+      }
+    } catch (error) {
+      console.error("Error capturing frame:", error);
+    }
+
+  };
+
+  useEffect(() =>{
+    let drowsinessCheckInterval: Node.JS.Timeout | undefined;
+
+    if(recording && isModelReady){
+      drowsinessCheckInterval = setInterval(() => {
+        captureFrameForDrowsiness();
+      }, 1000); // Capture every second
+    }
+
+    return () => {
+      if(drowsinessCheckInterval) {
+        clearInterval(drowsinessCheckInterval);
+      }
+    };
+  }, [recording, isModelReady]);
+
   return (
     <View style={styles.container}>
       {renderCamera()}
     </View>
   );
+
+  
+
+  return null;
 }
 
 //Styling
@@ -324,5 +543,44 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 30,
-  }
+  },
+  drowsinessOverlay: {
+    position: "absolute",
+    top: 80,
+    right: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    padding: 10,
+    borderRadius: 10,
+  },
+  drowsinessText:{
+    color: "white",
+    marginBottom: 5,
+  },
+  alertOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  alertText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 20,
+  },
+  alertButton: {
+    backgroundColor: 'white',
+    paddingHorizontal: 40,
+    paddingVertical: 15,
+    borderRadius: 30,
+  },
+  alertButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'red',
+  },
 });

@@ -6,7 +6,9 @@
       "@/*": [
         "./*"
       ]
-    }
+    },
+    "jsx": "react-native",
+    "moduleResolution": "node"
   },
   "include": [
     "**/*.ts",
