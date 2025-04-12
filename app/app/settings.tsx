@@ -2,7 +2,7 @@ import { Modal, View, Text, StyleSheet, Alert, TouchableOpacity, Button, FlatLis
 import React from 'react'
 import { Link } from 'expo-router'
 import {Ionicons} from '@expo/vector-icons';
-import { useNavigation } from "@react-navigation/native";
+import { useRouter } from 'expo-router';
 
 
 /*
@@ -19,7 +19,7 @@ import { useNavigation } from "@react-navigation/native";
 
 export default function settings() {
     const [modalVisible, setModalVisible] = React.useState(false);
-    const navigation = useNavigation();
+    const router = useRouter();
     const handleOpenSettings = () => { Linking.openSettings() }; //technically this opens the settings for the phone and not the app because the app isn't published yet.
 
 
@@ -34,8 +34,8 @@ export default function settings() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back_arrow}>
-        <Ionicons name="arrow-back" size={40} color="#FF5555" />
+      <TouchableOpacity onPress={() => router.back()} style={styles.back_arrow}>
+        <Ionicons name="arrow-back" size={40} color="#99342C" />
       </TouchableOpacity>
 
       <Text style={styles.title}>Settings</Text>
@@ -90,23 +90,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     flexDirection: "column",
-    backgroundColor: "rgba(217,217,217,1)",
+    backgroundColor: "rgb(206, 209, 184)",
     padding: 20,
   },
   title: {
     color: "black",
     fontSize: 24,
-    fontWeight: "bold",
+    letterSpacing: 1,
     textAlign: "center",
-    marginTop: 40,
+    marginTop: 80,
     marginBottom: 40,
   },
   back_arrow: {
-    top: 50,
+    position: "absolute",  // Ensures it's floating
+    top: 40,               // Adjust for safe area
     left: 20,
-  },
+    zIndex: 1000,          // Keeps it above other components 
+    padding: 10,
+
+}, 
   settingButton: {
-    backgroundColor: "white",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 4,
+    backgroundColor: 'rgba(235, 236, 222, 0.8)',
     paddingVertical: 15,
     marginVertical: 10,
     marginHorizontal: 50,

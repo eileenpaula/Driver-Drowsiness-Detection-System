@@ -3,7 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'reac
 import { FIREBASE_AUTH } from './firebase_config';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'expo-router';
-import { setDoc, doc } from "firebase/firestore";
+import { Link } from 'expo-router';
+import { login_user } from '@/database/user_session';
 
 
 const Login = () => {

@@ -55,14 +55,29 @@ def get_data_from_firestore(uid):
     collection_ref = db.collection('users').document(uid).collection('videos')
     print(collection_ref)
     # Fetch all documents in the collection
-    query = collection_ref.order_by('uploadedAt', direction=firestore.Query.DESCENDING).limit(1)
+    query = collection_ref.order_by('time_stored', direction=firestore.Query.DESCENDING).limit(1)
 
     # Fetch the document
     docs = query.stream()
     doc = next(docs, None)
-    video_path = doc.to_dict()['videoPath']
+    video_path = doc.to_dict()['file_path']
     return video_path
 #############################################
+
+def get_userData_from_firestore(uid):
+    db = firestore.client()
+    # Reference to your collection (replace 'your-collection-name' with your collection's name)
+    collection_ref = db.collection('users').document(uid)
+    print(collection_ref)
+    # Fetch all documents in the collection
+    # query = collection_ref.order_by('time_stored', direction=firestore.Query.DESCENDING).limit(1)
+
+    # Fetch the document
+    # docs = query.stream()
+    doc = collection_ref.get()
+    video_path = doc.to_dict()
+    return video_path
+
 
 def verify_token(token):
     try:
@@ -94,8 +109,8 @@ def update_video_firestore(video_path, user_id):
     db = firestore.client()
     video_ref = db.collection('users').document(user_id).collection('videos').document()
     video_ref.set({
-        'videoPath': video_path,
-        'uploadedAt': current_time,
+        'file_path': video_path,
+        'time_stored': current_time,
     })
 
 def get_url_and_time(user_id):
@@ -186,6 +201,7 @@ def preprocess(video, width=240, height=240):
     return output_path
 
 
-if __name__ == "__main__":
-    init()
-    download_video_from_storage(get_data_from_firestore("4XEvWLwTiaQfz6FSF1jk2uZHJxI3"))
+# if __name__ == "__main__":
+#     init()
+#     print(get_userData_from_firestore("4XEvWLwTiaQfz6FSF1jk2uZHJxI3"))
+    # download_video_from_storage(get_data_from_firestore("4XEvWLwTiaQfz6FSF1jk2uZHJxI3"))

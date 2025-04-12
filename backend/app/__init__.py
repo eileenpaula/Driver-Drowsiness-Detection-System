@@ -2,9 +2,11 @@ from flask import Flask, request, jsonify, send_from_directory
 import os, cv2 
 from flask_cors import CORS
 from random import randint
-from scripts.methods import init, verify_token, upload_file_to_storage, update_video_firestore
+from scripts.methods import ( init, verify_token, upload_file_to_storage, update_video_firestore
+                            ,get_userData_from_firestore)
 # import scripts.methods
 from uuid import uuid4
+from scripts.sms import sms_emg
 
 app = Flask(__name__)
 CORS(app)
@@ -79,18 +81,18 @@ def upload_video():
 
     return jsonify({"message": "Video uploaded successfully!", "file_path": file_path}), 200
 
-@app.route('/data', methods=['GET'])
+@app.route('/data', methods=['POST'])
 def get_data():
-    # Sample data to send to the frontend
-    i = randint(5,15)
-    print(i)
-    data = {
+    i = randint(10,20)
+    authentication = verify_token(request.headers["Autherization"])
+    uid = authentication['uid']
+    user_data = get_userData_from_firestore(uid)
+    print(user_data['emg_name'], user_data['emg_phone'])
+    # sms_emg(user_data['emg_name'],user_data['emg_phone'], user_data['name'])
+    return jsonify({
         'status': 'success',
         'waitDuration': i
-    }
-    
-    # Return the data as a JSON response
-    return jsonify(data)
+    }), 200
 
 
 if __name__ == "__main__":
