@@ -1,6 +1,7 @@
 import { setDoc, doc } from "firebase/firestore";
 import { FIREBASE_AUTH, FIREBASE_DB } from "./.config"; // Import Firebase instances
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signOut } from "firebase/auth";
 
 type accountParams = {
     email: string,
@@ -17,4 +18,14 @@ export const login_user = async ({email, password}: accountParams) => {
   } catch (error: any) {
     console.error("Login error:", error.message);
   }
-};
+}
+
+export const logout_user = async () => {
+  try {
+    await signOut(FIREBASE_AUTH);
+    console.log("User successfully logged out");
+  } catch (error: any) {
+    console.error("Logout error:", error.message);
+  }
+}
+

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Link } from 'expo-router';
-import { login_user } from '@/database/login_user';
+import { login_user } from '@/database/user_session';
 
 const login = () => {
   const [email, setEmail] = useState('');

@@ -9,7 +9,7 @@ import { Button, Pressable, StyleSheet, Text, View, TouchableOpacity } from "rea
 import { Link } from 'expo-router';
 import {Ionicons} from '@expo/vector-icons';
 import * as Progress from "react-native-progress";
-import { useNavigation } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import { DocumentData, setDoc, doc } from "firebase/firestore"; 
 import { FIREBASE_AUTH, FIREBASE_DB } from "../database/.config";
 import { Audio } from 'expo-av';
@@ -17,7 +17,7 @@ import { getStorage, ref, uploadBytesResumable } from 'firebase/storage'
 import uuid from 'react-native-uuid';
 
 export default function App() {
-  const navigation = useNavigation();
+  const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const camRef = useRef<CameraView>(null);
   const [mode, setMode] = useState<CameraMode>("video");
@@ -160,7 +160,7 @@ export default function App() {
         console.log("New recording started...");
         const video = await camRef.current?.recordAsync();
         console.log({ video })
-        // send_to_storage(video?.uri || "")
+        send_to_storage(video?.uri || "")
       }
     }else{
       console.log("Permission not granted to record video")
@@ -241,7 +241,7 @@ export default function App() {
   }, [permission, recording, waiting]);
 
 
-  /**Permission Check: When the camera screen opens, the app firs checks if the camera permissions have been granted.
+  /**Permission Check: When the camera screen opens, the app first checks if the camera permissions have been granted.
    * If not, a button is displayed to request perms. If perms are granted, the camera view is displayed.
    */
   if (!permission) {
@@ -282,7 +282,7 @@ export default function App() {
           indeterminate={indeterminate}
           color={progressColor}
         />
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back_arrow}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.back_arrow}>
           <Ionicons name="arrow-back" size={40} color="#FF5555" />
         </TouchableOpacity>
       </CameraView>
@@ -308,10 +308,13 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
   },
-  back_arrow:{
-    marginTop: 30,
-    marginLeft: 30,
-  },
+  back_arrow: {
+    position: "absolute",  // Ensures it's floating
+    top: 40,               // Adjust for safe area
+    left: 20,
+    zIndex: 1000,          // Keeps it above other components
+    padding: 5,
+},
   shutterContainer: {
     position: "absolute",
     bottom: 44,

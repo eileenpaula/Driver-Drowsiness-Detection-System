@@ -3,11 +3,9 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity } from "react-nativ
 import { create_user } from "../database/create_user";
 import { useRouter } from "expo-router";
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from "@react-navigation/native";
 
 export default function signUpPage() {
     const router = useRouter();
-    const navigation = useNavigation();
     const [name, setName] = React.useState("");
     const [email, setEmail] = React.useState("");
     const [password, setPassword] = React.useState("");
@@ -29,8 +27,8 @@ export default function signUpPage() {
 
     return (
         <View style={styles.container}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back_arrow}>
-                <Ionicons name="arrow-back" size={40} color="#FF5555" />
+            <TouchableOpacity onPress={() => router.back()} style={styles.back_arrow}>
+                <Ionicons name="arrow-back" size={40} color="#99342C" />
             </TouchableOpacity>
             <Text style={styles.subHeading}>Sign Up</Text>
               
@@ -103,10 +101,12 @@ export default function signUpPage() {
             backgroundColor: '#f8f9fa',
           },
           back_arrow: {
-            position: 'absolute',
-            top: 40,
-            left: 30,
-          },
+            position: "absolute",  // Ensures it's floating
+            top: 40,               // Adjust for safe area
+            left: 20,
+            zIndex: 1000,          // Keeps it above other components
+            padding: 5,
+        },
           subHeading: {
             fontSize: 20,
             fontWeight: 'bold',
