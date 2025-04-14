@@ -12,7 +12,7 @@ import {useFonts} from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from "expo-router";
 import { Link } from 'expo-router';
-import { FIREBASE_AUTH } from "./firebase_config";
+import { FIREBASE_AUTH } from "../database/.config";
 import { onAuthStateChanged, User} from "firebase/auth";
 
 export default function Index() {

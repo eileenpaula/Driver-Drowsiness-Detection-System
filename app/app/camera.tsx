@@ -1,11 +1,12 @@
 import {
+  Camera,
   CameraMode,
   CameraType,
   CameraView,
   useCameraPermissions,
 } from "expo-camera";
-import React, { useRef, useState, useEffect } from "react";
-import { Button, Pressable, StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import React, { useRef, useState, useEffect, useCallback } from "react";
+import { Button, Pressable, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Link } from 'expo-router';
 import {Ionicons} from '@expo/vector-icons';
 import * as Progress from "react-native-progress";
@@ -16,9 +17,8 @@ import { Audio } from 'expo-av';
 import { getStorage, ref, uploadBytesResumable } from 'firebase/storage'
 import uuid from 'react-native-uuid';
 import * as tf from '@tensorflow/tfjs';
-import { bundleResourceIO } from '@tensorflow/tfjs-react-native';
+import { bundleResourceIO, decodeJpeg } from '@tensorflow/tfjs-react-native';
 import * as FileSystem from 'expo-file-system';
-import { Float } from "react-native/Libraries/Types/CodegenTypes";
 
 interface DrowsinessResult{
   alertLevel: string;
@@ -53,7 +53,7 @@ export default function App() {
   const [recordDuration, setRecordDuration] = useState(2);
   const [waitDuration, setWaitDuration] = useState(5)  
   const [activeUser, setActiveUser] = useState('');
-  const [sound, setSound] = useState();
+  const [sound, setSound] = useState<Audio.Sound | undefined>(undefined);
   const [isModelReady, setIsModelReady] = useState(false);
   const [model, setModel] = useState<tf.LayersModel | null>(null);
   const [alertLevel, setAlertLevel] = useState('Alert');
@@ -62,11 +62,41 @@ export default function App() {
   const [drowsinessScore, setDrowsinessScore] = useState(0);
   const [isProcessingFrame, setIsProcessingFrame] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
+  const [isProcessingVideo, setIsProcessingVideo] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState("");
+  const [recordingComplete, setRecordingComplete] = useState(false);
+  const [recordingStats, setRecordingStats] = useState<any>(null);
+  const [statusMessage, setStatusMessage] = useState("Initializing...");
+  const [cycleCount, setCycleCount] = useState(0);
 
   const IMAGE_SIZE = 224;
-  const DROWSINESS_THRESHOLD = 0.6; 
+  const DROWSINESS_THRESHOLD = 0.6;
 
-  async function playSound() {
+  useEffect(() => {
+    (async () => {
+      const { status: cameraStatus } = await Camera.requestCameraPermissionsAsync();
+      const { status: micStatus } = await Camera.requestMicrophonePermissionsAsync();
+  
+      if (cameraStatus !== 'granted' || micStatus !== 'granted') {
+        alert('Camera and microphone permissions are required to use this feature.');
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    console.log(`State update: recording=${recording}, waiting=${waiting}, processing=${isProcessingVideo}`);
+
+    if (recording) {
+      setStatusMessage(`Recording... (Cycle ${cycleCount})`);
+    } else if (waiting) {
+      setStatusMessage(`Waiting for next recording... (${waitDuration}s)`);
+    } else if (isProcessingVideo) {
+      setStatusMessage(`Processing video...`);
+    }
+
+  }, [recording, waiting, isProcessingVideo, cycleCount, waitDuration]);
+
+  const playSound = useCallback(async () => {
 
     await Audio.setAudioModeAsync({
       playsInSilentModeIOS: true, // Ensure sound plays even in silent mode on iOS
@@ -81,27 +111,11 @@ export default function App() {
 
     console.log('Playing Sound');
     await  sound.playAsync(); 
-  }
-
-  useEffect(() => {
-    return sound
-      ? () => {
-          console.log('Unloading Sound');
-           sound.unloadAsync(); 
-        }
-      : undefined;
-  }, [sound]);
-
-  useEffect(() => {
-      const auth = FIREBASE_AUTH
-      const user = auth.currentUser
-      setActiveUser(user)
   }, []);
 
-  const sendVideoToBackend = async (uri: string) => {
+  const sendVideoToBackend = useCallback(async (uri: string) => {
       const formData = new FormData();
     
-      // React Native requires a specific structure for file uploads
       const file = {
         uri: uri,  // The local URI of the video file
         type: 'video/mp4',  // MIME type of the video file (adjust if necessary)
@@ -129,9 +143,9 @@ export default function App() {
       } catch (error) {
         console.error('Error sending video:', error);
       }
-  };
+  }, [activeUser]);
 
-  const send_to_storage = (uri: string) => {
+  const send_to_storage = useCallback((uri: string) => {
     const file_path =  `videos/${activeUser.uid}/${uuid.v4()}.mov`
     const storage = getStorage()
     const videoRef = ref(storage, file_path)
@@ -153,9 +167,9 @@ export default function App() {
       "time_stored": Date.now()
     });
 
-  }
+  }, [activeUser]);
 
-  const fetchDataFromBackend = async () => {
+  const fetchDataFromBackend = useCallback(async () => {
     try {
       // console.log('inside fetchdata',process.env.EXPO_PUBLIC_IP_ADDR)
       // Replace <your-ip> with your local network IP address
@@ -180,157 +194,61 @@ export default function App() {
     } catch (error) {
       console.error('Error:', error);
     }
-  };
+  }, [activeUser, playSound]);
 
-
-  const recordVideo = async () => {
-    if (permission.granted){ //Might need to change this to permission && permission.granted
-      console.log("INSIDE recordvideo")
-      if (recording) {
-        console.log("Already recording, stopping now...")
-        stopRecording();
-      } else {
-        setRecording(true);
-        console.log("New recording started...");
-        const video = await camRef.current?.recordAsync();
-        console.log({ video })
-        send_to_storage(video?.uri || "")
-      }
-    }else{
-      console.log("Permission not granted to record video")
-    }
-  };
-
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
     setRecording(false);
     console.log("Recording stopped.");
     camRef.current?.stopRecording();
-  };
+  }, []);
 
-  /** First useEffect hook listens for changes to certain state vars that are changed (wiating, recordin, or waitDuration)
-   * Program starts in the waiting phase. Conditional checks if waiting = true and recording = false. If condition is met, a setTimeout is started as an inital
-   * waiting period/countdown before starting the recording cycle.
-   * 
-   */
-  useEffect(() => {
-    setProgress(0)
-    if(waiting && !recording){
-      let interval: ReturnType<typeof setInterval>;
-      const timer = setTimeout(() => {
-        setIndeterminate(false);
-        interval = setInterval(() => {    //An interval is created to updated the progress every 100ms
-          setProgress((prevProgress) =>{
-              if (prevProgress >= 1){
-                fetchDataFromBackend()
-                setWaitDuration(data)
-                console.log("Prev wait time: ", waitDuration)
-                //setRecording(true);
-                recordVideo();
-                setWaiting(false);
-                return 0
-              }
-              return prevProgress + 1 / waitDuration
-              
+  const recordVideo = useCallback(async () => {
+    if (!permission?.granted) {
+      console.log("Permission not granted to record video");
+      return;
+    }
+    
+    console.log("INSIDE recordvideo");
+    if (recording) {
+      console.log("Already recording, stopping now...");
+      stopRecording();
+    } else {
+      setRecording(true);
+      setRecordingComplete(false);
+      setRecordingStats(null);
+      console.log("New recording started...");
+      
+      try {
+        const video = await camRef.current?.recordAsync();
+        console.log({ video });
+        
+        // Save recording stats for UI display
+        if (video) {
+          setRecordingStats({
+            uri: video.uri,
+            duration: recordDuration,
+            timestamp: new Date().toLocaleTimeString()
           });
-        }, waitDuration * 100);
-      }, recordDuration * 100);
-    
-      return () => {
-        clearTimeout(timer);
-        clearInterval(interval);
-    };
-    
-    }
-  }, [permission, waitDuration, recording]);
-
-  /**This useEffect is triggered when the recording state changes. Program is in a reocrding phase when
-   * recording become true and waiting become false. The recording cycle begins.
-   * After recordDuration secs the stopREcording function is called and the progress is cleared.
-   * Waiting is set to true
-   */
-  useEffect(() => {
-    if (recording && !waiting) {
-      console.log("recording now")
-      let progressInterval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 1) {
-            clearInterval(progressInterval);
-            return 1;
-          }
-          return prev + 1 / recordDuration; // Increment for 60 seconds
-        });
-      }, 1000);
-
-      setTimeout(() => {
-        stopRecording();
-        clearInterval(progressInterval);
+          await captureFrameForDrowsiness(video.uri);        }
+        
+        // Start processing the recorded video
+        send_to_storage(video?.uri || "");
+      } catch (recordingError) {
+        console.error('Error recording video:', recordingError);
+        setRecording(false);
         setWaiting(true);
-        setProgress(0);
-        setTimeout(() => {
-          setWaiting(true);
-          setRecording(false);
-        }, waitDuration * 1000); // Wait for 10 seconds
-      }, recordDuration * 1000);
+      }
     }
-  }, [permission, recording, waiting]);
+  }, [permission, recording, stopRecording, send_to_storage, recordDuration]);
 
-
-  /**Permission Check: When the camera screen opens, the app first checks if the camera permissions have been granted.
-   * If not, a button is displayed to request perms. If perms are granted, the camera view is displayed.
-   */
-  if (!permission) {
-    return null;
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.container}>
-        <Text style={{ textAlign: "center" }}>
-          We need your permission to use the camera
-        </Text>
-        <Button onPress={requestPermission} title="Grant permission" />
-      </View>
-    );
-  }
-
-  //Rendering the camera view, progress bar, and back arrow
-  const progressColor = recording === true ? "red" : "deepskyblue"
-  const renderCamera = () => {
-    return (
-      <CameraView
-        style={styles.camera}
-        ref={camRef}
-        mode={mode}
-        facing={facing}
-        mute={false}
-        responsiveOrientationWhenOrientationLocked
-      >
-        <View style={styles.shutterContainer}>
-        </View>
-        <Progress.Bar
-          progress={progress}
-          width={null}
-          height={10}
-          borderRadius={0}
-          borderWidth={0}
-          indeterminate={indeterminate}
-          color={progressColor}
-        />
-        <TouchableOpacity onPress={() => router.back()} style={styles.back_arrow}>
-          <Ionicons name="arrow-back" size={40} color="#FF5555" />
-        </TouchableOpacity>
-      </CameraView>
-    );
-  };
-
-  const normalizeArray = (array: number[] | Float32Array): number[] => {
-    const result = new Array(arr.length).fill(0);
+  const normalizeArray = useCallback((array: number[] | Float32Array): number[] => {
+    const result = new Array(array.length).fill(0);
     const maxIndex = Array.from(array).indexOf(Math.max(...Array.from(array)));
     result[maxIndex] = 1;
     return result;
-  }
+  }, []);
 
-  const setupTensorFlow = async () => {
+  const setupTensorFlow = useCallback(async () => {
     try{
       await tf.ready();
       console.log("TensorFlow is ready!");
@@ -338,33 +256,42 @@ export default function App() {
       console.log('Loading drowsiness detection model...');
 
       try{
-        const modelJson = require('../assets/model/model.json');
-        const modelWeights = require('../assets/model/weights.bin');
-        const loadedModel = await tf.loadLayersModel(bundleResourceIO(modelJson, modelWeights));
-
+        const model = await tf.loadLayersModel(
+          bundleResourceIO(
+            require('../assets/model/model.json'),
+            require('../assets/model/weights.bin')
+          )
+        );
+        
+        // Warm up the model with a dummy tensor
         const dummyInput = tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
-        const warmupResult = await loadedModel.predict(dummyInput);
-
-        if(Array.isArray(warmupResult)){
+        const warmupResult = model.predict(dummyInput);
+        
+        if (Array.isArray(warmupResult)) {
           warmupResult.forEach(tensor => tensor.dispose());
         } else {
           warmupResult.dispose();
         }
-
+        
         dummyInput.dispose();
-        setModel(loadedModel);
+        setModel(model);
         setIsModelReady(true);
         console.log("Model loaded and warmed up successfully!");
-
-      }catch (e){
+      } catch (e) {
         console.error("Error loading model:", e);
+        if (e instanceof Error) {
+          console.error(e.stack); // Log the full stack trace
+        } else {
+          console.error("An unknown error occurred:", e);
+        }
+
       }
     } catch (error) {
       console.error("Error setting up TensorFlow:", error);
     }
-  };
-
-  const processFrameForDrowsiness = async (frameUri: string): Promise<DrowsinessResult | null> => {
+  }, [IMAGE_SIZE]);
+  
+  const processFrameForDrowsiness = useCallback(async (frameUri: string): Promise<DrowsinessResult | null> => {
 
     if(!isModelReady || isProcessingFrame || !model) {
       return null;
@@ -392,9 +319,9 @@ export default function App() {
           rawYawnStateScores: Float32Array | number[];
 
       if (Array.isArray(predictions)) {
-        rawDrowsinessScores = await (predictions[0] as tf.Tensor).data();
-        rawEyesStateScores = await (predictions[1] as tf.Tensor).data();
-        rawYawnStateScores = await (predictions[2] as tf.Tensor).data();
+        rawDrowsinessScores = Array.from(await (predictions[0] as tf.Tensor).data());
+        rawEyesStateScores = Array.from(await (predictions[1] as tf.Tensor).data());
+        rawYawnStateScores = Array.from(await (predictions[2] as tf.Tensor).data());
 
         predictions.forEach(tensor => tensor.dispose());
       } else {
@@ -411,7 +338,7 @@ export default function App() {
 
       const alertnessLabels = ['Alert', 'Low Vigilant', 'Very Drowsy'];
       const eyesLabels = ['Eyes Open', 'Eyes Closed'];
-      const yawnLabels = ['Not Yawning', 'Yawning'];
+      const yawnLabels = ['Normal', 'Talking', 'Yawning'];
 
       const alertnessIndex = drowsinessScores.indexOf(1);
       const eyesIndex = eyesStateScores.indexOf(1);
@@ -463,33 +390,143 @@ export default function App() {
       setIsProcessingFrame(false);
     }
 
-  };
+  }, [IMAGE_SIZE, DROWSINESS_THRESHOLD, isModelReady, isProcessingFrame, model, normalizeArray, playSound]);
 
-  const captureFrameForDrowsiness = async (): Promise<void> => {
-    if(!isModelReady || !camRef.current) {
+  const captureFrameForDrowsiness = useCallback(async (uri?: string): Promise<void> => {
+    if(!isModelReady || (!camRef.current && !uri)) {
       return;
     }
 
     try{
-      const options = { quality: 0.5, base64: true, skipProcessing: true };
-      const data = await camRef.current.takePictureAsync(options);
+      let imageUri = uri;
+      if (!imageUri) {
+        const picture = await camRef.current?.takePictureAsync({ quality: 0.5, base64: true, skipProcessing: true });
+        if (!picture?.uri) {
+          console.warn("No image captured for drowsiness detection.");
+          return;
+        }
+      imageUri = picture.uri;
+      }
 
-      const drowsinessResults = await processFrameForDrowsiness(data.uri);
+      const drowsinessResults = await processFrameForDrowsiness(imageUri);
 
       if(drowsinessResults) {
         setDoc(doc(FIREBASE_DB, "users", activeUser.uid, 'drowsiness', uuid.v4()), {
           ...drowsinessResults,
           timestamp: Date.now(),
         });
+
+        setAlertLevel(drowsinessResults.alertLevel);
+        setEtesState(drowsinessResults.eyesState);
+        setYawnState(drowsinessResults.yawnState);
+        setRecordingComplete(true);
       }
     } catch (error) {
       console.error("Error capturing frame:", error);
     }
 
-  };
+  }, [activeUser, isModelReady, processFrameForDrowsiness]);
+
+  useEffect(() => {
+    return sound
+      ? () => {
+          console.log('Unloading Sound');
+           sound?.unloadAsync(); 
+        }
+      : undefined;
+  }, [sound]);
+
+  useEffect(() => {
+      const auth = FIREBASE_AUTH
+      const user = auth.currentUser
+      setActiveUser(user)
+  }, []);
+
+  useEffect(() => {
+    setupTensorFlow();
+  }, [setupTensorFlow]);
+
+  useEffect(() => {
+    setProgress(0)
+    if(waiting && !recording && !isProcessingVideo) {
+      console.log("Waiting for recording to start...");
+      setProgress(0);
+      let interval: ReturnType<typeof setInterval>;
+      const timer = setTimeout(() => {
+        setIndeterminate(false);
+        interval = setInterval(() => {    //An interval is created to updated the progress every 100ms
+          setProgress((prevProgress) =>{
+              if (prevProgress >= 1){
+                fetchDataFromBackend()
+                setWaitDuration(data)
+                console.log("Prev wait time: ", waitDuration)
+                //setRecording(true);
+                recordVideo();
+                setWaiting(false);
+                return 0
+              }
+              return prevProgress + 1 / waitDuration
+              
+          });
+        }, waitDuration * 100);
+      }, recordDuration * 100);
+    
+      return () => {
+        clearTimeout(timer);
+        if (interval) clearInterval(interval);
+    };
+    
+    }
+  }, [data, fetchDataFromBackend, recordDuration, recordVideo, recording, waitDuration, waiting, isProcessingVideo]);
+
+  /** First useEffect hook listens for changes to certain state vars that are changed (wiating, recordin, or waitDuration)
+   * Program starts in the waiting phase. Conditional checks if waiting = true and recording = false. If condition is met, a setTimeout is started as an inital
+   * waiting period/countdown before starting the recording cycle.
+   * 
+   */
+  
+
+  /**This useEffect is triggered when the recording state changes. Program is in a reocrding phase when
+   * recording become true and waiting become false. The recording cycle begins.
+   * After recordDuration secs the stopREcording function is called and the progress is cleared.
+   * Waiting is set to true
+   */
+  useEffect(() => {
+    if (recording && !waiting && !isProcessingVideo) {
+      console.log("recording now")
+      let progressInterval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 1) {
+            clearInterval(progressInterval);
+            return 1;
+          }
+          return prev + 1 / recordDuration; // Increment for 60 seconds
+        });
+      }, 1000);
+
+      const recordingTimeout = setTimeout(() => {
+        console.log("Recording duration complete");
+        stopRecording();
+        clearInterval(progressInterval);
+        setProgress(0);
+        
+        // After stopping recording, start processing immediately
+        // The UI will show processing state now
+      }, recordDuration * 1000);
+
+      return () => {
+        clearInterval(progressInterval);
+        clearTimeout(recordingTimeout);
+      };
+    }
+  }, [recordDuration, recording, stopRecording, waiting, isProcessingVideo]);
+
+  useEffect(() => {
+    setupTensorFlow()
+  }, []);
 
   useEffect(() =>{
-    let drowsinessCheckInterval: Node.JS.Timeout | undefined;
+    let drowsinessCheckInterval: ReturnType<typeof setInterval> | undefined;
 
     if(recording && isModelReady){
       drowsinessCheckInterval = setInterval(() => {
@@ -502,17 +539,96 @@ export default function App() {
         clearInterval(drowsinessCheckInterval);
       }
     };
-  }, [recording, isModelReady]);
+  }, [captureFrameForDrowsiness, recording, isModelReady]);
+
+  //Rendering the camera view, progress bar, and back arrow
+  
+  const renderCamera = () => {
+    const progressColor = recording === true ? "red" : "deepskyblue"
+    return (
+      <CameraView
+        style={styles.camera}
+        ref={camRef}
+        mode={mode}
+        facing={facing}
+        mute={false}
+        responsiveOrientationWhenOrientationLocked
+      >
+        <View style={styles.statusContainer}>
+          <Text style={styles.statusText}>{statusMessage}</Text>
+        </View>
+        <Progress.Bar
+          progress={progress}
+          width={null}
+          height={10}
+          borderRadius={0}
+          borderWidth={0}
+          indeterminate={indeterminate}
+          color={progressColor}
+        />
+        <TouchableOpacity onPress={() => router.back()} style={styles.back_arrow}>
+          <Ionicons name="arrow-back" size={40} color="#FF5555" />
+        </TouchableOpacity>
+      </CameraView>
+    );
+  };
+
+  // Render processing overlay
+  const renderProcessingOverlay = () => {
+    return (
+      <View style={styles.processingOverlay}>
+        <ActivityIndicator size="large" color="#ffffff" />
+        <Text style={styles.processingText}>{processingMessage}</Text>
+      </View>
+    );
+  };
+
+
+  /**Permission Check: When the camera screen opens, the app first checks if the camera permissions have been granted.
+   * If not, a button is displayed to request perms. If perms are granted, the camera view is displayed.
+   */
+  if (!permission) {
+    return null;
+  }
+
+  if (!permission.granted) {
+    return (
+      <View style={styles.container}>
+        <Text style={{ textAlign: "center" }}>
+          We need your permission to use the camera
+        </Text>
+        <Button onPress={requestPermission} title="Grant permission" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       {renderCamera()}
+      
+      {isProcessingVideo && renderProcessingOverlay()}
+      
+      {!isProcessingVideo && recordingComplete && (
+        <View style={styles.drowsinessStatusContainer}>
+        <Text style={styles.drowsinessStatusText}>Alertness: {alertLevel}</Text>
+        <Text style={styles.drowsinessStatusText}>Eyes: {eyesState}</Text>
+        <Text style={styles.drowsinessStatusText}>Yawn: {yawnState}</Text>
+      </View>
+      )}
+      
+      {showAlert && (
+        <View style={styles.alertOverlay}>
+          <Text style={styles.alertText}>DROWSINESS DETECTED!</Text>
+          <TouchableOpacity 
+            style={styles.alertButton}
+            onPress={() => setShowAlert(false)}
+          >
+            <Text style={styles.alertButtonText}>I'm Awake</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
-
-  
-
-  return null;
 }
 
 //Styling
@@ -533,28 +649,34 @@ const styles = StyleSheet.create({
     left: 20,
     zIndex: 1000,          // Keeps it above other components
     padding: 5,
-},
-  shutterContainer: {
-    position: "absolute",
-    bottom: 44,
-    left: 0,
-    width: "100%",
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 30,
   },
-  drowsinessOverlay: {
+  statusContainer: {
     position: "absolute",
-    top: 80,
+    top: 40,
     right: 20,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 15,
+    zIndex: 100,
+  },
+  statusText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  drowsinessStatusContainer: {
+    position: "absolute",
+    top: 90,
+    right: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     padding: 10,
     borderRadius: 10,
+    zIndex: 100,
   },
-  drowsinessText:{
+  drowsinessStatusText: {
     color: "white",
-    marginBottom: 5,
+    fontSize: 12,
+    marginBottom: 2,
   },
   alertOverlay: {
     position: 'absolute',
@@ -565,6 +687,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1000,
   },
   alertText: {
     fontSize: 28,
@@ -582,5 +705,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: 'red',
+  },
+  processingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  processingText: {
+    color: 'white',
+    fontSize: 18,
+    marginTop: 20,
+    textAlign: 'center',
   },
 });
