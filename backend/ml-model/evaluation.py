@@ -10,11 +10,11 @@ import seaborn as sns
 import pandas as pd
 
 # Step 2: Load the Trained Model
-model = tf.keras.models.load_model("/root/ddds/multi_task_drowsiness_model.h5")
+model = tf.keras.models.load_model("/multi_task_drowsiness_model.h5")
 print("Model Loaded Successfully!")
 
 # Step 3: Load Test Dataset for Evaluation
-base_test_dir = "/root/ddds/dataset_split/test"
+base_test_dir = "/dataset_split/test"
 paths = {
     "drowsiness": os.path.join(base_test_dir, "ddd"),
     "yawning": os.path.join(base_test_dir, "yawdd"),
@@ -115,7 +115,7 @@ print("\n Exporting metrics to Excel...")
 overall_df = pd.DataFrame(overall_metrics)
 per_class_df = pd.DataFrame(per_class_metrics)
 
-excel_path = "/root/ddds/evaluation_metrics.xlsx"
+excel_path = "/evaluation_metrics.xlsx"
 with pd.ExcelWriter(excel_path) as writer:
     overall_df.to_excel(writer, sheet_name="Overall Metrics", index=False)
     per_class_df.to_excel(writer, sheet_name="Per-Class Metrics", index=False)

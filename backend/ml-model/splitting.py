@@ -6,13 +6,13 @@ from sklearn.model_selection import train_test_split
 
 
 # Step 2: Load Processed Dataset
-df = pd.read_csv("./root/ddds/processed_data/processed_data.csv")
+df = pd.read_csv("./processed_data/processed_data.csv")
 print("Dataset Loaded Successfully!")
 print(df.head())
 
 
 # Step 3: Define Output Structure
-SPLIT_BASE = "./root/ddds/dataset_split"
+SPLIT_BASE = "./dataset_split"
 TASKS = ["ddd", "yawdd", "eye_state"]
 SPLITS = ["train", "test"]
 

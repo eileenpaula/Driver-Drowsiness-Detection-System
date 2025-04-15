@@ -8,7 +8,7 @@ from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 # Step 2: Define Dataset Paths
-base_dir = "/root/ddds/dataset_split/train"
+base_dir = "/dataset_split/train"
 paths = {
     "ddd": os.path.join(base_dir, "ddd"),
     "yawdd": os.path.join(base_dir, "yawdd"),
@@ -115,5 +115,5 @@ history = model.fit(
 )
 
 # Step 7: Save the Model
-model.save("/root/ddds/multi_task_drowsiness_model.h5")
+model.save("/multi_task_drowsiness_model.h5")
 print("Multi-task model saved!")

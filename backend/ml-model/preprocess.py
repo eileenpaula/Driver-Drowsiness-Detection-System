@@ -10,18 +10,18 @@ from imutils import face_utils
 
 # Load face detection and landmark models
 detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor("./root/ddds/data/shape_predictor_68_face_landmarks.dat")
+predictor = dlib.shape_predictor("./data/shape_predictor_68_face_landmarks.dat")
 
 # Step 2: Define Paths for Datasets
 DATA_PATHS = {
-    "yawdd": "./root/ddds/data/yawdd/Mirror",
-    "eye_state": "./root/ddds/data/eye_state/train/",
-    "ddd_faces": "./root/ddds/data/ddd/Driver Drowsiness Dataset (DDD)/",
-    "uta_rldd": "./root/ddds/data/uta_rldd/"
+    "yawdd": "./data/yawdd/Mirror",
+    "eye_state": "./data/eye_state/train/",
+    "ddd_faces": "./data/ddd/Driver Drowsiness Dataset (DDD)/",
+    "uta_rldd": "./data/uta_rldd/"
 }
 
 # Define output directory and create subfolders
-PROCESSED_DATA_PATH = "./root/ddds/processed_data/"
+PROCESSED_DATA_PATH = "./processed_data/"
 SUBFOLDERS = ["yawdd", "eye_state", "ddd", "uta_rldd"]
 for folder in SUBFOLDERS:
     os.makedirs(os.path.join(PROCESSED_DATA_PATH, folder), exist_ok=True)
@@ -112,7 +112,7 @@ def process_uta_videos(dataset_path):
         extract_frames(video_path, dataset_name="ddd", subfolder=label, frame_interval=10, label=label)
         total_videos += 1
 
-    print(f"Processed {total_videos} UTA videos into ./root/ddds/processed_data/ddd/<label>/")
+    print(f"Processed {total_videos} UTA videos into ./processed_data/ddd/<label>/")
 
 def process_ddd_images(dataset_path):
     processed_ddd_dir = os.path.join(PROCESSED_DATA_PATH, "ddd")
