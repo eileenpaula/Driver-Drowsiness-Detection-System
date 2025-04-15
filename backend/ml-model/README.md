@@ -136,7 +136,7 @@ python evaluation.py
 
 ---
 
-## 🧾 Example Metrics Output
+## Example Metrics Output
 
 | Task       | Accuracy | ROC AUC |
 |------------|----------|---------|
