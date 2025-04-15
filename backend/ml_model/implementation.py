@@ -198,7 +198,7 @@ def analyze_pending_videos():
         json_filename = os.path.splitext(os.path.basename(video_path))[0] + "_results.json"
         json_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
         with open(json_temp.name, "w") as jf:
-            json.dump(results, jf)
+            json.dump(summary, jf)
 
         json_blob = bucket.blob(f"results/{json_filename}")
         json_blob.upload_from_filename(json_temp.name)
