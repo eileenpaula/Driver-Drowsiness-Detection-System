@@ -170,7 +170,7 @@ class DrowsinessDetector:
 def analyze_pending_videos():
     cred = credentials.Certificate("serviceAccKey.json")
     firebase_admin.initialize_app(cred, {
-        'storageBucket': 'drowsy-app-47252.appspot.com'
+        'storageBucket': 'drowsy-app-47252.firebasestorage.app'
     })
 
     db = firestore.client()
@@ -187,22 +187,33 @@ def analyze_pending_videos():
 
         blob = bucket.blob(file_path)
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
-            blob.download_to_filename(temp_file.name)
-            video_path = temp_file.name
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+        temp_file.close()
+        blob.download_to_filename(temp_file.name)
+        video_path = temp_file.name
 
         results = detector.process_video(video_path, sample_rate=2)
         summary = detector.analyze_video_results(results)
 
-        print("✅ Summary:", summary)
+        json_filename = os.path.splitext(os.path.basename(video_path))[0] + "_results.json"
+        json_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+        with open(json_temp.name, "w") as jf:
+            json.dump(results, jf)
 
-        # Upload result to Firestore
+        json_blob = bucket.blob(f"results/{json_filename}")
+        json_blob.upload_from_filename(json_temp.name)
+        json_blob.make_public()
+        json_url = json_blob.public_url
+
+        
         doc.reference.set({
             "status": "complete",
-            "results": summary
+            "results": summary,
+            "result_json_url": json_url
         }, merge=True)
 
         os.unlink(video_path)
+        os.unlink(json_temp.name)
 
 if __name__ == "__main__":
     analyze_pending_videos()
