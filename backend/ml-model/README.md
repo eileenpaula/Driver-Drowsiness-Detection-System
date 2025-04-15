@@ -33,7 +33,7 @@ Built using **MobileNetV2**, the model uses **multi-task learning** and preproce
 |--------------|--------------------------------|--------------------------------|
 | Drowsiness   | `alert`, `drowsy`, `low_vigilant` | UTA RLDD, DDD dataset          |
 | Yawning      | `normal`, `talking`, `yawning`    | YawDD dataset                  |
-| Eye State    | `closed`, `open`                  | CEW (Closed Eyes in the Wild)  |
+| Eye State    | `closed`, `open`                  | UnityEyes dataset              |
 
 ---
 
