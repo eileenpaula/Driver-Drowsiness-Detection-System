@@ -1,0 +1,10 @@
+tensorflow
+numpy
+matplotlib
+scikit-learn
+opencv-python
+ipykernel
+dlib
+pandas
+imutils
+openpyxl

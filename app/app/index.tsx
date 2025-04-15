@@ -12,7 +12,7 @@ import {useFonts} from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from "expo-router";
 import { Link } from 'expo-router';
-import { FIREBASE_AUTH } from '../database/.config';
+import { FIREBASE_AUTH } from "../database/.config";
 import { onAuthStateChanged, User} from "firebase/auth";
 
 export default function Index() {
@@ -133,6 +133,18 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     left: -30,
     margin: 5,
+  },
+
+  settingsButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+  },
+
+  logoutButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
   },
 
   title: {
