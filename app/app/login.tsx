@@ -5,42 +5,25 @@ import { Link } from 'expo-router';
 import { login_user } from '@/database/user_session';
 import {useFonts} from 'expo-font';
 
-
 const login = () => {
   const [loadFonts]=useFonts({
       'IS': require('../assets/fonts/Instrument_Sans.ttf'),
       'ISBold': require('../assets/fonts/InstrumentSans-Bold.ttf'),
     })
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [_error, set_Error] = useState('');
   const router = useRouter();
 
   const handleLogin = async () => {
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(FIREBASE_AUTH, email, password);
+      await login_user({ email, password });
       // Success - redirect to home screen
       router.replace('/');
     } catch (error: any) {
       Alert.alert('Login Failed', error.message);
-      set_Error(error.message)
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignUp = async () => {
-    setLoading(true);
-    try {
-      await createUserWithEmailAndPassword(FIREBASE_AUTH, email, password);
-      Alert.alert('Success', 'Account created!');
-      // Optional: Auto-login after signup
-      router.replace('/');
-    } catch (error: any) {
-      Alert.alert('Sign Up Failed', error.message);
-      set_Error(error.message)
     } finally {
       setLoading(false);
     }
@@ -48,6 +31,7 @@ const login = () => {
 
   return (
     <View style={styles.container}>
+
       <View style={styles.logoContainer}>
         <Image source={require("../assets/images/logo2.png")} style={styles.logo} />
       </View>
@@ -61,6 +45,7 @@ const login = () => {
       <TextInput
         style={styles.input}
         placeholder="Email"
+        placeholderTextColor={"#000"}
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -69,13 +54,13 @@ const login = () => {
       <TextInput
         style={styles.input}
         placeholder="Password"
+        placeholderTextColor={"#000"}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
       
-      <TouchableOpacity 
-        style={[styles.button, styles.loginButton]} 
+      <TouchableOpacity style={[styles.button, styles.loginButton]} 
         onPress={handleLogin}
         disabled={loading}
         >
@@ -84,13 +69,11 @@ const login = () => {
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={styles.signupButton} 
-        onPress={handleSignUp}
-        disabled={loading}
-      >
-        <Text style={styles.signUpButtonText}>Create an Account</Text>
-      </TouchableOpacity>
+      <Link href= "./signup" asChild>
+        <TouchableOpacity>
+          <Text style={styles.signUpButtonText}>Create an Account</Text>
+        </TouchableOpacity>
+      </Link>
     </View>
   );
 };
@@ -128,7 +111,14 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 60,
   },
+  subHeading: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    padding: 10,
+    textAlign: 'center',
+  },
   input: {
+    color: "black",
     marginVertical: 10,
     padding: 15,
     borderWidth: 1,
@@ -146,10 +136,10 @@ const styles = StyleSheet.create({
   loginButton: {
     backgroundColor: '#99342C',
   },
-  signupButton: {
-    padding:25,
-    textAlign: 'center',
-    alignItems: 'center',
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 18,
   },
   signUpButtonText:{
     textAlign: 'center',
@@ -158,11 +148,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 18,
   },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 18,
-  },
 });
 
-export default Login;
+export default login;
