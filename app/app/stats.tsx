@@ -5,7 +5,7 @@ import { FIREBASE_AUTH, FIREBASE_DB } from '../database/.config';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {format} from 'date-fns';
-import Svg, { Polyline, Line, Text as SvgText } from 'react-native-svg';
+import Svg, { Polyline, Line, Text as SvgText, Circle } from 'react-native-svg';
 
 const AlertnessLineGraph = ({
   data,
@@ -41,19 +41,32 @@ const AlertnessLineGraph = ({
           stroke="gray"
           strokeWidth="1"
         />
+
         {/* Alertness Lines */}
         <Polyline points={getPoints("Alert")} fill="none" stroke="green" strokeWidth="2" />
         <Polyline points={getPoints("Low")} fill="none" stroke="orange" strokeWidth="2" />
         <Polyline points={getPoints("Drowsy")} fill="none" stroke="red" strokeWidth="2" />
 
-        {/* X-axis date labels */}
+        {/* Dots */}
+        {data.map((point, index) => {
+          const x = padding + (index / (data.length - 1)) * (width - 2 * padding);
+          return (
+            <React.Fragment key={`dot-${index}`}>
+              <Circle cx={x} cy={height - padding - (point.Alert / maxY) * (height - 2 * padding)} r="3" fill="green" />
+              <Circle cx={x} cy={height - padding - (point.Low / maxY) * (height - 2 * padding)} r="3" fill="orange" />
+              <Circle cx={x} cy={height - padding - (point.Drowsy / maxY) * (height - 2 * padding)} r="3" fill="red" />
+            </React.Fragment>
+          );
+        })}
+
+        {/* Labels for time */}
         {labels.map((label, index) => {
           const x = padding + (index / (labels.length - 1)) * (width - 2 * padding);
           return (
             <SvgText
-              key={index}
+              key={`label-${index}`}
               x={x}
-              y={height}
+              y={height + 10}
               fontSize="8"
               fill="black"
               textAnchor="middle"
@@ -97,15 +110,29 @@ export default function StatsPage() {
     fetchVideos();
   }, []);
   
-  const alertnessGraphData = videos.map((video) => ({
-    Alert: video.results?.alertness_percentages?.["Alert"] || 0,
-    Low: video.results?.alertness_percentages?.["Low Vigilant"] || 0,
-    Drowsy: video.results?.alertness_percentages?.["Very Drowsy"] || 0,
-  }));
+  const alertnessGraphData = videos.map((video) => {
+    const alertness = video.results?.alertness_percentages || {};
+    return {
+      Alert: alertness["Alert"] || 0,
+      Low: alertness["Low Vigilant"] || 0,
+      Drowsy: alertness["Very Drowsy"] || 0,
+    };
+  });
   
   const alertnessLabels = videos.map((video) => {
-    const date = new Date(video.createdAt?.seconds * 1000);
-    return `${date.getMonth() + 1}/${date.getDate()}`; // e.g. "4/15"
+    let timestamp = video.time_recorded ?? video.time_stored;
+  
+    // Convert Firestore Timestamp to Date only if needed
+    if (timestamp) {
+      const date = typeof timestamp.toDate === "function" ? timestamp.toDate() : timestamp;
+      try {
+        return format(date, "MMM d");
+      } catch {
+        return "Invalid";
+      }
+    }
+  
+    return "Unknown";
   });
   
 
@@ -171,7 +198,7 @@ export default function StatsPage() {
       ) : videos.length > 0 ? (
         <FlatList
           contentContainerStyle={styles.cardContainer}
-          data={videos}
+          data={[...videos].reverse()}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
         />
