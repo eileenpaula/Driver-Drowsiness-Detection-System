@@ -72,7 +72,7 @@ export default function settings() {
       {/* External Links--Report a prob send user the repos issues page.*/}
       <Link href="https://www.nhtsa.gov/risky-driving/drowsy-driving" asChild>
         <TouchableOpacity style={styles.settingButton}>
-          <Text style={styles.buttonText}>Driving Saftey</Text>
+          <Text style={styles.buttonText}>Driving Safety</Text>
         </TouchableOpacity>
       </Link>
 

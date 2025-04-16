@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity } from "react-nativ
 import { create_user } from "../database/create_user";
 import { useRouter } from "expo-router";
 import { Ionicons } from '@expo/vector-icons';
+import { FirebaseError } from "firebase/app";
+import { getAuthErrorMessage } from '@/database/error_handling';
 
 export default function signUpPage() {
     const router = useRouter();
@@ -12,6 +14,7 @@ export default function signUpPage() {
     const [phone, setPhone] = React.useState("");
     const [emg_name, setEmgName] = React.useState("");
     const [emg_phone, setEmgPhone] = React.useState("");
+    const [error,setError] = React.useState("");
 
 
     const handleSignUp = async () => {  
@@ -21,7 +24,12 @@ export default function signUpPage() {
             // Redirect to homepage
             router.replace('/');
         }catch (error) {
-            console.error("Signup error:", error);
+            if (error instanceof FirebaseError) {
+                    const errorMessage = getAuthErrorMessage(error);
+                    setError(errorMessage);
+                  } else {
+                    setError('An unexpected error occurred. Please try again.');
+                  }
         }
     }
 
@@ -31,6 +39,12 @@ export default function signUpPage() {
                 <Ionicons name="arrow-back" size={40} color="#99342C" />
             </TouchableOpacity>
             <Text style={styles.subHeading}>Sign Up</Text>
+
+            {error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
               
             <TextInput
                 style={styles.input}
@@ -89,6 +103,8 @@ export default function signUpPage() {
                 <Text style={styles.signUpButtonText}>Sign Up</Text>
             </TouchableOpacity>
 
+            
+
         </View>
           );
         };
@@ -98,7 +114,7 @@ export default function signUpPage() {
             flex: 1,
             justifyContent: 'center',
             padding: 20,
-            backgroundColor: '#f8f9fa',
+            backgroundColor: 'rgb(206, 209, 184)',
           },
           back_arrow: {
             position: "absolute",  // Ensures it's floating
@@ -118,14 +134,14 @@ export default function signUpPage() {
             marginVertical: 10,
             padding: 15,
             borderWidth: 1,
-            borderColor: '#ccc',
+            borderColor: 'rgb(163, 165, 146)',
             borderRadius: 10,
-            backgroundColor: '#fff',
+            backgroundColor: 'rgb(193, 196, 168)',
           },
           button: {
             marginTop: 20,
             padding: 15,
-            backgroundColor: '#FF5555',
+            backgroundColor: '#99342C',
             borderRadius: 10,
             alignItems: 'center',
           },
@@ -138,6 +154,17 @@ export default function signUpPage() {
             color: 'white',
             fontWeight: 'bold',
             fontSize: 18,
+          },
+          errorContainer: {
+            marginBottom: 10,
+            padding: 10,
+            backgroundColor: '#ffebee',
+            borderRadius: 5,
+          },
+          errorText: {
+            color: 'red',
+            textAlign: 'center',
+            fontSize: 16,
           },
         });
         

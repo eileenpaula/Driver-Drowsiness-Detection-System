@@ -106,8 +106,8 @@ export default function App() {
     const response = await fetch(uri);
     const blob = await response.blob();
 
-      // Append the file to FormData
-      const uploadTask = uploadBytesResumable(videoRef, blob);
+    // Append the file to FormData
+    const uploadTask = uploadBytesResumable(videoRef, blob);
 
       uploadTask.on('state_changed',
         (snapshot) => {
@@ -126,7 +126,7 @@ export default function App() {
       setRecordingStats({ videoId });
       pollForResults(videoId); 
 
-  }, [activeUser]);
+}, [activeUser]);
 
   // const fetchDataFromBackend = useCallback(async () => {
   //   try {
@@ -310,7 +310,6 @@ export default function App() {
 
   //Rendering the camera view, progress bar, and back arrow
   const renderCamera = () => {
-    const progressColor = recording === true ? "red" : "deepskyblue"
     return (
       <CameraView
       ref={camRef}
@@ -391,6 +390,7 @@ export default function App() {
     );
   }
 
+
   return (
     <View style={styles.container}>
       {renderCamera()}
@@ -448,6 +448,16 @@ const styles = StyleSheet.create({
     left: 20,
     zIndex: 1000,          // Keeps it above other components
     padding: 5,
+},
+  shutterContainer: {
+    position: "absolute",
+    bottom: 44,
+    left: 0,
+    width: "100%",
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 30,
   },
   statusContainer: {
     position: "absolute",

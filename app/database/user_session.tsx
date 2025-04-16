@@ -17,6 +17,7 @@ export const login_user = async ({email, password}: accountParams) => {
     console.log("User logged in:", user.uid);
   } catch (error: any) {
     console.error("Login error:", error.message);
+    throw error;
   }
 }
 

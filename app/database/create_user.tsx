@@ -31,5 +31,6 @@ export const create_user = async ({name, email, password, phone, emg_name, emg_p
     console.log("User signed up & data saved in Firestore:", user.uid);
   } catch (error: any) {
     console.error("Signup error:", error.message);
+    throw error;
   }
 };

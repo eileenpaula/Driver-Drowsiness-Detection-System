@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { Link } from 'expo-router';
 import { login_user } from '@/database/user_session';
 import {useFonts} from 'expo-font';
+import { FirebaseError } from 'firebase/app';
+import { getAuthErrorMessage } from '@/database/error_handling';
 
 const login = () => {
   const [loadFonts]=useFonts({
@@ -14,16 +16,27 @@ const login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<String>('');
   const router = useRouter();
 
   const handleLogin = async () => {
+    setError('');
     setLoading(true);
+  
     try {
       await login_user({ email, password });
-      // Success - redirect to home screen
       router.replace('/');
-    } catch (error: any) {
-      Alert.alert('Login Failed', error.message);
+    } catch (err: unknown) {
+      console.log('Caught error in handleLogin:', err);
+  
+      if (err instanceof FirebaseError) {
+        console.log('Firebase error code:', err.code);
+        const errorMessage = getAuthErrorMessage(err);
+        setError(errorMessage);
+      } else {
+        console.log('Non-Firebase error:', err);
+        setError('An unexpected error occurred.');
+      }
     } finally {
       setLoading(false);
     }
@@ -41,37 +54,45 @@ const login = () => {
       </Text>
       </View> */}
       <Text style={styles.subHeading}>Login</Text>
+
+      {error ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
       
+
       <TextInput
         style={styles.input}
         placeholder="Email"
-        placeholderTextColor={"#000"}
+        placeholderTextColor="#000"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
       />
-      
+
       <TextInput
         style={styles.input}
         placeholder="Password"
-        placeholderTextColor={"#000"}
+        placeholderTextColor="#000"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
-      
-      <TouchableOpacity style={[styles.button, styles.loginButton]} 
+
+      <TouchableOpacity
+        style={[styles.button, styles.loginButton, loading && styles.disabledButton]}
         onPress={handleLogin}
         disabled={loading}
-        >
-        <Text style={styles.buttonText}>
-          {loading ? 'Signing In...' : 'Log In'}
-        </Text>
+      >
+        <Text style={styles.buttonText}>{loading ? 'Signing In...' : 'Log In'}</Text>
       </TouchableOpacity>
 
-      <Link href= "./signup" asChild>
+      <Link href="./signup" asChild>
         <TouchableOpacity>
-          <Text style={styles.signUpButtonText}>Create an Account</Text>
+          <Text style={styles.signUpButtonText}>
+          Create an Account
+          </Text>
         </TouchableOpacity>
       </Link>
     </View>
@@ -136,17 +157,31 @@ const styles = StyleSheet.create({
   loginButton: {
     backgroundColor: '#99342C',
   },
+  disabledButton: {
+    opacity: 0.6,
+  },
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 18,
   },
-  signUpButtonText:{
+  signUpButtonText: {
     textAlign: 'center',
     padding: 25,
     color: '#99342C',
     fontWeight: 'bold',
     fontSize: 18,
+  },
+  errorContainer: {
+    marginBottom: 10,
+    padding: 10,
+    backgroundColor: '#ffebee',
+    borderRadius: 5,
+  },
+  errorText: {
+    color: 'red',
+    textAlign: 'center',
+    fontSize: 16,
   },
 });
 
