@@ -210,10 +210,10 @@ export default function App() {
     setRecordingComplete(false);
   
     try {
-      recordingTriggeredRef.current = true; // ✅ move here
+      recordingTriggeredRef.current = true;
       setRecording(true);
       console.log("🎥 Recording in progress");
-      setProcessingMessage("Recording video...");
+      setStatusMessage("Recording...");
   
       const video = await camRef.current.recordAsync({
         maxDuration: recordDuration,
@@ -225,7 +225,7 @@ export default function App() {
       setFirstRecordingDone(true);
       stopRecording();
       setIsProcessingVideo(true);
-      setProcessingMessage("Uploading video...");
+      setStatusMessage("Uploading video...");
       await send_to_storage(video.uri);
     } catch (err) {
       console.error("❌ Error during recording or analysis:", err);
