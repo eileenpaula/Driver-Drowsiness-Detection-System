@@ -10,11 +10,16 @@ import { Link } from 'expo-router';
 import {Ionicons} from '@expo/vector-icons';
 import * as Progress from "react-native-progress";
 import { useRouter } from "expo-router";
+import { DocumentData, setDoc, doc } from "firebase/firestore"; 
+import { FIREBASE_AUTH, FIREBASE_DB } from "../database/.config";
+import { Audio } from 'expo-av';
+import { getStorage, ref, uploadBytesResumable } from 'firebase/storage'
+import uuid from 'react-native-uuid';
 
 export default function App() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
-  const ref = useRef<CameraView>(null);
+  const camRef = useRef<CameraView>(null);
   const [mode, setMode] = useState<CameraMode>("video");
   const [facing, setFacing] = useState<CameraType>("front");
   const [recording, setRecording] = useState(false);
@@ -22,9 +27,42 @@ export default function App() {
   const [indeterminate, setIndeterminate] = useState(true);
   const [waiting, setWaiting] = useState(true);
   const [data, setData] = useState(10);
-  const [recordDuration, setRecordDuration] = useState(3);
-  const [waitDuration, setWaitDuration] = useState(10)
+  const [recordDuration, setRecordDuration] = useState(2);
+  const [waitDuration, setWaitDuration] = useState(5)  
+  const [activeUser, setActiveUser] = useState('');
+  const [sound, setSound] = useState();
 
+  async function playSound() {
+
+    await Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true, // Ensure sound plays even in silent mode on iOS
+      allowsRecordingIOS: false
+    });
+
+    console.log('Loading Sound');
+     const { sound } = await Audio.Sound.createAsync(
+       require('../assets/annoying_ring.mp3')
+    );
+    setSound(sound);
+
+    console.log('Playing Sound');
+    await  sound.playAsync(); 
+  }
+
+  useEffect(() => {
+    return sound
+      ? () => {
+          console.log('Unloading Sound');
+           sound.unloadAsync(); 
+        }
+      : undefined;
+  }, [sound]);
+
+  useEffect(() => {
+      const auth = FIREBASE_AUTH
+      const user = auth.currentUser
+      setActiveUser(user)
+  }, []);
 
   const sendVideoToBackend = async (uri: string) => {
       const formData = new FormData();
@@ -41,8 +79,11 @@ export default function App() {
     
       try {
         // This is the part where the actual file is sent to the backend
-        const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDRESS}:5000/upload`, {
+        const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDR}:5000/upload`, {
           method: 'POST',
+          headers: {
+            "Autherization": `${activeUser.stsTokenManager.accessToken}`
+          },
           body: formData,  // FormData is the body of the request, containing the file
         });
     
@@ -56,22 +97,54 @@ export default function App() {
       }
   };
 
+  const send_to_storage = (uri: string) => {
+    const file_path =  `videos/${activeUser.uid}/${uuid.v4()}.mov`
+    const storage = getStorage()
+    const videoRef = ref(storage, file_path)
+
+      // React Native requires a specific structure for file uploads
+    const blub = new Blob([uri],{type: 'video/mp4'})
+    const file = uploadBytesResumable(videoRef, blub)//{
+
+      // Append the file to FormData
+    file.on('state_changed',
+      (snapshot) =>{
+          const progress = (snapshot.bytesTransferred /snapshot.totalBytes) * 100
+          console.log(`upload is ${progress.toFixed(2)}% done`)
+      }
+    )
+      
+    setDoc(doc(FIREBASE_DB, "users", activeUser.uid,'videos', uuid.v4()), {
+      "file_path": file_path,
+      "time_stored": Date.now()
+    });
+
+  }
+
   const fetchDataFromBackend = async () => {
     try {
+      // console.log('inside fetchdata',process.env.EXPO_PUBLIC_IP_ADDR)
       // Replace <your-ip> with your local network IP address
-      const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDRESS}:5000/data`);
-      
+      // const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDR}:5000/data`);
+      const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDR}:5000/data`, {
+        method: 'POST',
+        headers: {
+          "Autherization": `${activeUser.stsTokenManager.accessToken}`
+        }
+      })
+
       if (response.ok) {
         const responseData = await response.json();
         setData(responseData.waitDuration)
-        console.log("Backend response: ",responseData)
-        console.log("Upcoming wait time: ", data)
+        if(responseData.waitDuration < 20){
+          playSound() 
+        }
+        console.log('Video uploaded successfully');
       } else {
         throw new Error('Failed to fetch data');
       }
     } catch (error) {
       console.error('Error:', error);
-      // Alert.alert('Error', 'Failed to fetch data from backend');
     }
   };
 
@@ -85,9 +158,9 @@ export default function App() {
       } else {
         setRecording(true);
         console.log("New recording started...");
-        const video = await ref.current?.recordAsync();
-        console.log({ video });
-        await sendVideoToBackend(video?.uri || "")
+        const video = await camRef.current?.recordAsync();
+        console.log({ video })
+        send_to_storage(video?.uri || "")
       }
     }else{
       console.log("Permission not granted to record video")
@@ -97,7 +170,7 @@ export default function App() {
   const stopRecording = () => {
     setRecording(false);
     console.log("Recording stopped.");
-    ref.current?.stopRecording();
+    camRef.current?.stopRecording();
   };
 
   /** First useEffect hook listens for changes to certain state vars that are changed (wiating, recordin, or waitDuration)
@@ -192,7 +265,7 @@ export default function App() {
     return (
       <CameraView
         style={styles.camera}
-        ref={ref}
+        ref={camRef}
         mode={mode}
         facing={facing}
         mute={false}

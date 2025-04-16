@@ -33,6 +33,7 @@
           "backgroundColor": "#ffffff"
         }
       ],
+      "expo-audio",
       "expo-font"
     ],
     "experiments": {

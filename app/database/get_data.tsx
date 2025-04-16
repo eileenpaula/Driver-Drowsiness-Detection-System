@@ -39,10 +39,13 @@ export async function getUserInfo() {
 }
 
 //Future update
-// const q = query(collection(db, "cities"), where("capital", "==", true));
+export async function spec(){
+    console.log("what is this")
+    const q = query(collection(FIREBASE_DB, "users"), where("name", "==", "Ronnie Bonnie"));
 
-// const querySnapshot = await getDocs(q);
-// querySnapshot.forEach((doc) => {
-//   // doc.data() is never undefined for query doc snapshots
-//   console.log(doc.id, " => ", doc.data());
-// });
+    const querySnapshot = await getDocs(q);
+    querySnapshot.forEach((doc) => {
+    // doc.data() is never undefined for query doc snapshots
+    console.log(doc.id, " => ", doc.data());
+    });
+}

@@ -114,7 +114,7 @@ export default function signUpPage() {
             flex: 1,
             justifyContent: 'center',
             padding: 20,
-            backgroundColor: '#f8f9fa',
+            backgroundColor: 'rgb(206, 209, 184)',
           },
           back_arrow: {
             position: "absolute",  // Ensures it's floating
@@ -134,14 +134,14 @@ export default function signUpPage() {
             marginVertical: 10,
             padding: 15,
             borderWidth: 1,
-            borderColor: '#ccc',
+            borderColor: 'rgb(163, 165, 146)',
             borderRadius: 10,
-            backgroundColor: '#fff',
+            backgroundColor: 'rgb(193, 196, 168)',
           },
           button: {
             marginTop: 20,
             padding: 15,
-            backgroundColor: '#FF5555',
+            backgroundColor: '#99342C',
             borderRadius: 10,
             alignItems: 'center',
           },
