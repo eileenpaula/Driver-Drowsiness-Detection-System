@@ -20,13 +20,12 @@ const AlertnessLineGraph = ({
   const padding = 20;
 
   const getPoints = (key: keyof typeof data[0]) => {
-    return data
-      .map((point, index) => {
-        const x = padding + (index / (data.length - 1)) * (width - 2 * padding);
-        const y = height - padding - (point[key] / maxY) * (height - 2 * padding);
-        return `${x},${y}`;
-      })
-      .join(" ");
+    return data.map((point, index) => {
+      const safeDivisor = data.length > 1 ? data.length - 1 : 1;
+      const x = padding + (index / safeDivisor) * (width - 2 * padding);
+      const y = height - padding - (point[key] / maxY) * (height - 2 * padding);
+      return `${x},${y}`;
+    }).join(" ");
   };
 
   return (
@@ -49,7 +48,8 @@ const AlertnessLineGraph = ({
 
         {/* Dots */}
         {data.map((point, index) => {
-          const x = padding + (index / (data.length - 1)) * (width - 2 * padding);
+          const safeDivisor = data.length > 1 ? data.length - 1 : 1;
+          const x = padding + (index / safeDivisor) * (width - 2 * padding);
           return (
             <React.Fragment key={`dot-${index}`}>
               <Circle cx={x} cy={height - padding - (point.Alert / maxY) * (height - 2 * padding)} r="3" fill="green" />
@@ -61,7 +61,8 @@ const AlertnessLineGraph = ({
 
         {/* Labels for time */}
         {labels.map((label, index) => {
-          const x = padding + (index / (labels.length - 1)) * (width - 2 * padding);
+          const safeDivisor = labels.length > 1 ? labels.length - 1 : 1;
+          const x = padding + (index / safeDivisor) * (width - 2 * padding);
           return (
             <SvgText
               key={`label-${index}`}
