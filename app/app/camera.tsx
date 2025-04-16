@@ -1,4 +1,5 @@
 import {
+  Camera,
   CameraMode,
   CameraType,
   CameraView,
@@ -128,9 +129,9 @@ export default function App() {
 
 }, [activeUser]);
 
-  const fetchDataFromBackend = async () => {
+  const fetchDataFromBackend = useCallback(async () => {
     try {
-      const response = await fetch(`http://10.108.137.153:500/data`);
+      const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDR}:5000/data`);
       const json = await response.json();
       return json;
     } catch (error) {
@@ -397,6 +398,36 @@ export default function App() {
     );
   };
 
+  // Render processing overlay
+  const renderProcessingOverlay = () => {
+    return (
+      <View style={styles.processingOverlay}>
+        <ActivityIndicator size="large" color="#ffffff" />
+        <Text style={styles.processingText}>{processingMessage}</Text>
+      </View>
+    );
+  };
+
+
+  /**Permission Check: When the camera screen opens, the app first checks if the camera permissions have been granted.
+   * If not, a button is displayed to request perms. If perms are granted, the camera view is displayed.
+   */
+  if (!permission) {
+    return null;
+  }
+
+  if (!permission.granted) {
+    return (
+      <View style={styles.container}>
+        <Text style={{ textAlign: "center" }}>
+          We need your permission to use the camera
+        </Text>
+        <Button onPress={requestPermission} title="Grant permission" />
+      </View>
+    );
+  }
+
+
   return (
     <View style={styles.container}>
       {renderCamera()}
@@ -461,5 +492,77 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 30,
-  }
+  },
+  statusContainer: {
+    position: "absolute",
+    top: 40,
+    right: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 15,
+    zIndex: 100,
+  },
+  statusText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  drowsinessStatusContainer: {
+    position: "absolute",
+    top: 90,
+    right: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    padding: 10,
+    borderRadius: 10,
+    zIndex: 100,
+  },
+  drowsinessStatusText: {
+    color: "white",
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  alertOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  alertText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 20,
+  },
+  alertButton: {
+    backgroundColor: 'white',
+    paddingHorizontal: 40,
+    paddingVertical: 15,
+    borderRadius: 30,
+  },
+  alertButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'red',
+  },
+  processingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  processingText: {
+    color: 'white',
+    fontSize: 18,
+    marginTop: 20,
+    textAlign: 'center',
+  },
 });
