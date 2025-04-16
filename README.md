@@ -12,3 +12,7 @@ Future Plans:
 Extra:
 Possibly add high def product logo
 Possibly revamp color schemes, fonts, spacing, etc, if needed/have time
+
+To run:
+With a virtual environment active, navigate to backend/ml_model and run python implementation.py
+Then, navigate to app and run npx expo start || npm start

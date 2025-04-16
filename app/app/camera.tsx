@@ -4,8 +4,8 @@ import {
   CameraView,
   useCameraPermissions,
 } from "expo-camera";
-import React, { useRef, useState, useEffect } from "react";
-import { Button, Pressable, StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import React, { useRef, useState, useEffect, useCallback} from "react";
+import { Button, Pressable, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Link } from 'expo-router';
 import {Ionicons} from '@expo/vector-icons';
 import * as Progress from "react-native-progress";
@@ -15,11 +15,15 @@ import { FIREBASE_AUTH, FIREBASE_DB } from "../database/.config";
 import { Audio } from 'expo-av';
 import { getStorage, ref, uploadBytesResumable } from 'firebase/storage'
 import uuid from 'react-native-uuid';
+import type { User } from "firebase/auth";
+import { onSnapshot } from "firebase/firestore";
+
+
 
 export default function App() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
-  const camRef = useRef<CameraView>(null);
+  const camRef = useRef<any>(null);
   const [mode, setMode] = useState<CameraMode>("video");
   const [facing, setFacing] = useState<CameraType>("front");
   const [recording, setRecording] = useState(false);
@@ -27,12 +31,56 @@ export default function App() {
   const [indeterminate, setIndeterminate] = useState(true);
   const [waiting, setWaiting] = useState(true);
   const [data, setData] = useState(10);
-  const [recordDuration, setRecordDuration] = useState(2);
+  const [recordDuration, setRecordDuration] = useState(60);
   const [waitDuration, setWaitDuration] = useState(5)  
-  const [activeUser, setActiveUser] = useState('');
-  const [sound, setSound] = useState();
+  const [activeUser, setActiveUser] = useState<User | null>(null);
+  const [sound, setSound] = useState<Audio.Sound | undefined>(undefined);
+  const [alertLevel, setAlertLevel] = useState('Alert');
+  const [eyesState, setEyesState] = useState('Eyes Open');
+  const [yawnState, setYawnState] = useState('Not Yawning');
+  const [showAlert, setShowAlert] = useState(false);
+  const [isProcessingVideo, setIsProcessingVideo] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState("");
+  const [recordingComplete, setRecordingComplete] = useState(false);
+  const [recordingStats, setRecordingStats] = useState<any>(null);
+  const [statusMessage, setStatusMessage] = useState("Initializing...");
+  const [bufferTime, setBufferTime] = useState(10);
+  const [dynamicWaitTime, setDynamicWaitTime] = useState<number | null>(null);
+  const [modelResponseTimer, setModelResponseTimer] = useState<NodeJS.Timeout | null>(null);
+  const [pendingLabelCheck, setPendingLabelCheck] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [cameraMounted, setCameraMounted] = useState(false);
+  const recordingTriggeredRef = useRef(false);
+  const [firstRecordingDone, setFirstRecordingDone] = useState(false);
 
-  async function playSound() {
+
+
+  useEffect(() => {
+    (async () => {
+      const { status: cameraStatus } = await Camera.requestCameraPermissionsAsync();
+      const { status: micStatus } = await Camera.requestMicrophonePermissionsAsync();
+  
+      if (cameraStatus !== 'granted' || micStatus !== 'granted') {
+        alert('Camera and microphone permissions are required to use this feature.');
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    console.log(`State update: recording=${recording}, waiting=${waiting}, processing=${isProcessingVideo}`);
+
+    if (recording) {
+    } else if (waiting) {
+      //const waitTime = firstRecordingDone ? (dynamicWaitTime ?? waitDuration) : bufferTime;
+      //setStatusMessage(`Waiting for next recording... (${waitTime}s)`);
+    }
+     else if (isProcessingVideo) {
+      setStatusMessage(`Processing video...`);
+    }
+
+  }, [recording, waiting, isProcessingVideo, waitDuration]);
+
+  const playSound = useCallback(async () => {
 
     await Audio.setAudioModeAsync({
       playsInSilentModeIOS: true, // Ensure sound plays even in silent mode on iOS
@@ -47,13 +95,193 @@ export default function App() {
 
     console.log('Playing Sound');
     await  sound.playAsync(); 
-  }
+  }, []);
+
+  const send_to_storage = useCallback(async(uri: string) => {
+    const file_path =  `videos/${activeUser.uid}/${uuid.v4()}.mov`
+    const storage = getStorage()
+    const videoRef = ref(storage, file_path)
+
+    const response = await fetch(uri);
+    const blob = await response.blob();
+
+      
+    // Append the file to FormData
+    const uploadTask = uploadBytesResumable(videoRef, blob);
+
+    uploadTask.on('state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        console.log(`upload is ${progress.toFixed(2)}% done`);
+      }
+    );
+  
+    const videoId = uuid.v4();
+    await setDoc(doc(FIREBASE_DB, "users", activeUser.uid, "videos", videoId), {
+      file_path,
+      time_stored: Date.now(),
+      status: "pending"
+    });
+  
+    setRecordingStats({ videoId });
+    pollForResults(videoId); 
+
+}, [activeUser]);
+
+  const fetchDataFromBackend = async () => {
+    try {
+      const response = await fetch(`http://10.108.137.153:500/data`);
+      const json = await response.json();
+      return json;
+    } catch (error) {
+      console.error("Error fetching analysis results:", error);
+      return null;
+    }
+  }, [activeUser, playSound]);
+
+  const pollForResults = (videoId: string) => {
+    const docRef = doc(FIREBASE_DB, "users", activeUser.uid, "videos", videoId);
+  
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      const data = docSnap.data();
+      if (data?.status === "complete") {
+        console.log("✅ Results ready:", data.results);
+        const res = data.results;
+  
+        if (res?.alertness_counts && typeof res.alertness_counts === "object") {
+          const counts = res.alertness_counts as Record<string, number>;
+          const mostCommon = Object.entries(counts).reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+          setAlertLevel(mostCommon);
+        
+          
+          let dynamicWaitTime = 180; // default fallback (3 minutes)
+          if (mostCommon === "Very Drowsy") {
+            dynamicWaitTime = 300; // 5 minutes
+          } else if (mostCommon === "Low Vigilant") {
+            dynamicWaitTime = 420; // 7 minutes
+          } else if (mostCommon === "Alert") {
+            dynamicWaitTime = 600; // 10 minutes
+          }
+          setDynamicWaitTime(dynamicWaitTime); 
+          setWaitDuration(dynamicWaitTime); 
+          console.log(`⏱️ Wait time until next recording: ${dynamicWaitTime / 60} minutes`);
+        }
+  
+        if (res?.eyes_closed_frames !== undefined && res?.total_frames) {
+          setEyesState(res.eyes_closed_frames > res.total_frames / 2 ? "Eyes Closed" : "Eyes Open");
+        }
+  
+        if (res?.yawning_frames !== undefined) {
+          setYawnState(res.yawning_state);
+        }
+  
+        setShowAlert(res.alertness_counts?.["Very Drowsy"] > 3);
+        setIsProcessingVideo(false); 
+        setProcessingMessage("");
+        setPendingLabelCheck(false);
+        unsubscribe();
+      }
+    });
+  
+    setPendingLabelCheck(true);
+  };
+  
+
+  const determineWaitTime = (alertnessPercentages: any): number => {
+    if (!alertnessPercentages) return 180;
+  
+    const dominant = Object.entries(alertnessPercentages).reduce((a: any, b: any) => {
+      return b[1] > a[1] ? b : a;
+    })[0]; // Get the label
+  
+    switch (dominant) {
+      case "Very Drowsy":
+        return 300;
+      case "Low Vigilant":
+        return 420;
+      case "Alert":
+        return 600;
+      default:
+        return 180;
+    }
+  };
+  
+  
+
+  const stopRecording = useCallback(() => {
+    console.log("Stopping recording...");
+    setRecording(false);
+    recordingTriggeredRef.current = false;
+    console.log("Recording stopped.");
+  }, []);
+
+  // const sendVideoToBackend = async (videoUri: string) => {
+  //   const formData = new FormData();
+  //   formData.append("video", {
+  //     uri: videoUri,
+  //     type: "video/mp4",
+  //     name: "video.mp4"
+  //   });
+  
+  //   const res = await fetch("http://10.108.137.153:5000/analyze-video", {
+  //     method: 'POST',
+  //     headers: {
+  //       Authorization: activeUser?.stsTokenManager.accessToken ?? '',
+  //     },
+  //     body: formData,
+  //   });
+  
+  //   const json = await res.json();
+  //   console.log("💡 Analysis result:", json);
+  //   return json;
+  // };
+  
+
+  const recordVideo = async () => {
+    console.log("⚙️ Recording triggered");
+  
+    if (!camRef.current || !isCameraReady) {
+      console.warn("❌ Camera not ready yet");
+      return;
+    }
+  
+    try {
+      recordingTriggeredRef.current = true; // ✅ move here
+      setRecording(true);
+      console.log("🎥 Recording in progress");
+      setProcessingMessage("Recording video...");
+  
+      const video = await camRef.current.recordAsync({
+        maxDuration: recordDuration,
+        quality: '480p',
+        mute: false,
+      });
+  
+      console.log("✅ Video recorded:", video.uri);
+      setFirstRecordingDone(true);
+      stopRecording();
+      setIsProcessingVideo(true);
+      setProcessingMessage("Uploading video...");
+      await send_to_storage(video.uri);
+    } catch (err) {
+      console.error("❌ Error during recording or analysis:", err);
+      stopRecording();
+    }
+  };
+  
+  const normalizeArray = useCallback((array: number[] | Float32Array): number[] => {
+    const result = new Array(array.length).fill(0);
+    const maxIndex = Array.from(array).indexOf(Math.max(...Array.from(array)));
+    result[maxIndex] = 1;
+    return result;
+  }, []);
+  
 
   useEffect(() => {
     return sound
       ? () => {
           console.log('Unloading Sound');
-           sound.unloadAsync(); 
+           sound?.unloadAsync(); 
         }
       : undefined;
   }, [sound]);
@@ -61,237 +289,146 @@ export default function App() {
   useEffect(() => {
       const auth = FIREBASE_AUTH
       const user = auth.currentUser
-      setActiveUser(user)
-  }, []);
-
-  const sendVideoToBackend = async (uri: string) => {
-      const formData = new FormData();
-    
-      // React Native requires a specific structure for file uploads
-      const file = {
-        uri: uri,  // The local URI of the video file
-        type: 'video/mp4',  // MIME type of the video file (adjust if necessary)
-        name: 'video.mov',  // File name, you can make it dynamic
-      };
-    
-      // Append the file to FormData
-      formData.append('video', file); //Look into this error later something about blob??
-    
-      try {
-        // This is the part where the actual file is sent to the backend
-        const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDR}:5000/upload`, {
-          method: 'POST',
-          headers: {
-            "Autherization": `${activeUser.stsTokenManager.accessToken}`
-          },
-          body: formData,  // FormData is the body of the request, containing the file
-        });
-    
-        if (response.ok) {
-          console.log('Video uploaded successfully');
-        } else {
-          console.log('Error uploading video');
-        }
-      } catch (error) {
-        console.error('Error sending video:', error);
-      }
-  };
-
-  const send_to_storage = (uri: string) => {
-    const file_path =  `videos/${activeUser.uid}/${uuid.v4()}.mov`
-    const storage = getStorage()
-    const videoRef = ref(storage, file_path)
-
-      // React Native requires a specific structure for file uploads
-    const blub = new Blob([uri],{type: 'video/mp4'})
-    const file = uploadBytesResumable(videoRef, blub)//{
-
-      // Append the file to FormData
-    file.on('state_changed',
-      (snapshot) =>{
-          const progress = (snapshot.bytesTransferred /snapshot.totalBytes) * 100
-          console.log(`upload is ${progress.toFixed(2)}% done`)
-      }
-    )
-      
-    setDoc(doc(FIREBASE_DB, "users", activeUser.uid,'videos', uuid.v4()), {
-      "file_path": file_path,
-      "time_stored": Date.now()
-    });
-
-  }
-
-  const fetchDataFromBackend = async () => {
-    try {
-      // console.log('inside fetchdata',process.env.EXPO_PUBLIC_IP_ADDR)
-      // Replace <your-ip> with your local network IP address
-      // const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDR}:5000/data`);
-      const response = await fetch(`http://${process.env.EXPO_PUBLIC_IP_ADDR}:5000/data`, {
-        method: 'POST',
-        headers: {
-          "Autherization": `${activeUser.stsTokenManager.accessToken}`
-        }
-      })
-
-      if (response.ok) {
-        const responseData = await response.json();
-        setData(responseData.waitDuration)
-        if(responseData.waitDuration < 20){
-          playSound() 
-        }
-        console.log('Video uploaded successfully');
+      if (user) {
+        setActiveUser(user);
       } else {
-        throw new Error('Failed to fetch data');
+        console.warn("⚠️ No Firebase user is signed in.");
       }
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
-
-  const recordVideo = async () => {
-    if (permission.granted){ //Might need to change this to permission && permission.granted
-      console.log("INSIDE recordvideo")
-      if (recording) {
-        console.log("Already recording, stopping now...")
-        stopRecording();
-      } else {
-        setRecording(true);
-        console.log("New recording started...");
-        const video = await camRef.current?.recordAsync();
-        console.log({ video })
-        send_to_storage(video?.uri || "")
-      }
-    }else{
-      console.log("Permission not granted to record video")
-    }
-  };
-
-  const stopRecording = () => {
-    setRecording(false);
-    console.log("Recording stopped.");
-    camRef.current?.stopRecording();
-  };
+  }, []);  
 
   /** First useEffect hook listens for changes to certain state vars that are changed (wiating, recordin, or waitDuration)
    * Program starts in the waiting phase. Conditional checks if waiting = true and recording = false. If condition is met, a setTimeout is started as an inital
    * waiting period/countdown before starting the recording cycle.
    * 
    */
-  useEffect(() => {
-    setProgress(0)
-    if(waiting && !recording){
-      let interval: ReturnType<typeof setInterval>;
-      const timer = setTimeout(() => {
-        setIndeterminate(false);
-        interval = setInterval(() => {    //An interval is created to updated the progress every 100ms
-          setProgress((prevProgress) =>{
-              if (prevProgress >= 1){
-                fetchDataFromBackend()
-                setWaitDuration(data)
-                console.log("Prev wait time: ", waitDuration)
-                //setRecording(true);
-                recordVideo();
-                setWaiting(false);
-                return 0
-              }
-              return prevProgress + 1 / waitDuration
-              
-          });
-        }, waitDuration * 100);
-      }, recordDuration * 100);
-    
-      return () => {
-        clearTimeout(timer);
-        clearInterval(interval);
-    };
-    
-    }
-  }, [permission, waitDuration, recording]);
+  
 
   /**This useEffect is triggered when the recording state changes. Program is in a reocrding phase when
    * recording become true and waiting become false. The recording cycle begins.
    * After recordDuration secs the stopREcording function is called and the progress is cleared.
    * Waiting is set to true
    */
+  
   useEffect(() => {
-    if (recording && !waiting) {
-      console.log("recording now")
-      let progressInterval = setInterval(() => {
+    if (
+      !recordingTriggeredRef.current &&
+      !recording &&
+      !isProcessingVideo &&
+      isCameraReady &&
+      waiting
+    ) {
+      const delay = firstRecordingDone ? (dynamicWaitTime ?? waitDuration) : bufferTime;
+      console.log(`⏳ ${firstRecordingDone ? "Waiting before next recording" : "Buffering before first recording"} (${delay} sec)`);
+  
+      recordingTriggeredRef.current = true;
+      setProgress(0);
+  
+      let interval = setInterval(() => {
         setProgress((prev) => {
           if (prev >= 1) {
-            clearInterval(progressInterval);
-            return 1;
+            clearInterval(interval);
+            setProgress(0);
+            setWaiting(false);
+            recordVideo();
+            return 0;
           }
-          return prev + 1 / recordDuration; // Increment for 60 seconds
+          return prev + 1 / delay;
         });
       }, 1000);
-
-      setTimeout(() => {
-        stopRecording();
-        clearInterval(progressInterval);
-        setWaiting(true);
-        setProgress(0);
-        setTimeout(() => {
-          setWaiting(true);
-          setRecording(false);
-        }, waitDuration * 1000); // Wait for 10 seconds
-      }, recordDuration * 1000);
+  
+      return () => clearInterval(interval);
     }
-  }, [permission, recording, waiting]);
+  }, [recording, isProcessingVideo, waiting, dynamicWaitTime, waitDuration, bufferTime, isCameraReady, firstRecordingDone]);
+    
+  
+  
 
-
-  /**Permission Check: When the camera screen opens, the app first checks if the camera permissions have been granted.
-   * If not, a button is displayed to request perms. If perms are granted, the camera view is displayed.
-   */
-  if (!permission) {
-    return null;
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.container}>
-        <Text style={{ textAlign: "center" }}>
-          We need your permission to use the camera
-        </Text>
-        <Button onPress={requestPermission} title="Grant permission" />
-      </View>
-    );
-  }
 
   //Rendering the camera view, progress bar, and back arrow
-  const progressColor = recording === true ? "red" : "deepskyblue"
   const renderCamera = () => {
     return (
       <CameraView
-        style={styles.camera}
-        ref={camRef}
-        mode={mode}
-        facing={facing}
-        mute={false}
-        responsiveOrientationWhenOrientationLocked
+      ref={camRef}
+      mode = {mode}
+      style={styles.camera}
+      facing={facing}
+      mute = {false}
+      onCameraReady={() => {
+        console.log("✅ onCameraReady triggered!");
+        setIsCameraReady(true);
+        setCameraMounted(true);
+      }}
+      onMountError={(error) => {
+        console.error("❌ Camera mount error:", error);
+        setIsCameraReady(false);
+      }}
+    >
+      <View style={styles.statusContainer}>
+        <Text style={styles.statusText}>{statusMessage}</Text>
+      </View>
+      <Progress.Bar
+        progress={progress}
+        width={null}
+        height={10}
+        borderRadius={0}
+        borderWidth={0}
+        indeterminate={indeterminate}
+        color={recording ? "red" : "deepskyblue"}
+      />
+      <TouchableOpacity
+        onPress={() => {
+          console.log("🔙 Back button pressed on camera screen");
+          setRecording(false);
+          setIsProcessingVideo(false);
+          setWaiting(false);
+          setCameraMounted(false);
+          setIsCameraReady(false);
+          if (modelResponseTimer) clearTimeout(modelResponseTimer);
+          recordingTriggeredRef.current = false;
+          setStatusMessage("Recording cancelled");
+          router.back();
+        }}
+        style={styles.back_arrow}
       >
-        <View style={styles.shutterContainer}>
-        </View>
-        <Progress.Bar
-          progress={progress}
-          width={null}
-          height={10}
-          borderRadius={0}
-          borderWidth={0}
-          indeterminate={indeterminate}
-          color={progressColor}
-        />
-        <TouchableOpacity onPress={() => router.back()} style={styles.back_arrow}>
-          <Ionicons name="arrow-back" size={40} color="#FF5555" />
-        </TouchableOpacity>
-      </CameraView>
+        <Ionicons name="arrow-back" size={40} color="#FF5555" />
+      </TouchableOpacity>
+    </CameraView>
+
     );
   };
 
   return (
     <View style={styles.container}>
       {renderCamera()}
+      
+      {isProcessingVideo && renderProcessingOverlay()}
+
+      {pendingLabelCheck && (
+        <View style={styles.processingOverlay}>
+          <ActivityIndicator size="large" color="#ffffff" />
+          <Text style={styles.processingText}>Calculating drowsiness...</Text>
+        </View>
+      )}
+      
+      {!isProcessingVideo && recordingComplete && (
+        <View style={styles.drowsinessStatusContainer}>
+        <Text style={styles.drowsinessStatusText}>Alertness: {alertLevel}</Text>
+        <Text style={styles.drowsinessStatusText}>Eyes: {eyesState}</Text>
+        <Text style={styles.drowsinessStatusText}>Yawn: {yawnState}</Text>
+      </View>
+      )}
+      
+      {showAlert && (
+        <View style={styles.alertOverlay}>
+          <Text style={styles.alertText}>DROWSINESS DETECTED!</Text>
+          <TouchableOpacity 
+            style={styles.alertButton}
+            onPress={() => setShowAlert(false)}
+          >
+            <Text style={styles.alertButtonText}>I'm Awake</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }

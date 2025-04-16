@@ -199,7 +199,7 @@ def preprocess(video, width=240, height=240):
     return output_path
 
 
-# if __name__ == "__main__":
-#     init()
-#     print(get_userData_from_firestore("4XEvWLwTiaQfz6FSF1jk2uZHJxI3"))
-    # download_video_from_storage(get_data_from_firestore("4XEvWLwTiaQfz6FSF1jk2uZHJxI3"))
+if __name__ == "__main__":
+    init()
+    #print(get_userData_from_firestore("4XEvWLwTiaQfz6FSF1jk2uZHJxI3"))
+    download_video_from_storage(get_data_from_firestore("4XEvWLwTiaQfz6FSF1jk2uZHJxI3"))
