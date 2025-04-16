@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity } from "react-nativ
 import { create_user } from "../database/create_user";
 import { useRouter } from "expo-router";
 import { Ionicons } from '@expo/vector-icons';
+import { FirebaseError } from "firebase/app";
+import { getAuthErrorMessage } from '@/database/error_handling';
 
 export default function signUpPage() {
     const router = useRouter();
@@ -12,6 +14,7 @@ export default function signUpPage() {
     const [phone, setPhone] = React.useState("");
     const [emg_name, setEmgName] = React.useState("");
     const [emg_phone, setEmgPhone] = React.useState("");
+    const [error,setError] = React.useState("");
 
 
     const handleSignUp = async () => {  
@@ -21,7 +24,12 @@ export default function signUpPage() {
             // Redirect to homepage
             router.replace('/');
         }catch (error) {
-            console.error("Signup error:", error);
+            if (error instanceof FirebaseError) {
+                    const errorMessage = getAuthErrorMessage(error);
+                    setError(errorMessage);
+                  } else {
+                    setError('An unexpected error occurred. Please try again.');
+                  }
         }
     }
 
@@ -88,6 +96,10 @@ export default function signUpPage() {
                 onPress={handleSignUp}>
                 <Text style={styles.signUpButtonText}>Sign Up</Text>
             </TouchableOpacity>
+
+            <Text style={styles.subHeading}>
+            {error}
+            </Text>
 
         </View>
           );
