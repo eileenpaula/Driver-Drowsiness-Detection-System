@@ -15,7 +15,7 @@ export default function RootLayout() {
       options={{headerShown: false}}
       />
       <Stack.Screen name="stats" 
-      options={{headerTitle: "Driving Stats"}}
+      options={{headerShown: false}}
       />
       <Stack.Screen name ="settings"
       options={{headerShown: false}}

@@ -10,7 +10,7 @@ import requests
 
 # Initialize Firebase Admin SDK with your service account key
 def init(): #could get removed int he future
-    file_path = "C:\\Users\\NeoPancakeFiles\\Desktop\\FIU\\SEMESTERS\\2025 Spring"
+    file_path = "C:\\Users\\emely\\Documents\\GitHub"
     load_dotenv(dotenv_path=f"{file_path}\\Driver-Drowsiness-Detection-System\\app\\.env")
 
     cred = credentials.Certificate(os.getenv("CONF_JSON"))
@@ -201,7 +201,7 @@ def preprocess(video, width=240, height=240):
     return output_path
 
 
-# if __name__ == "__main__":
-#     init()
-#     print(get_userData_from_firestore("4XEvWLwTiaQfz6FSF1jk2uZHJxI3"))
-    # download_video_from_storage(get_data_from_firestore("4XEvWLwTiaQfz6FSF1jk2uZHJxI3"))
+if __name__ == "__main__":
+    init()
+    #print(get_userData_from_firestore("4XEvWLwTiaQfz6FSF1jk2uZHJxI3"))
+    download_video_from_storage(get_data_from_firestore("4XEvWLwTiaQfz6FSF1jk2uZHJxI3"))

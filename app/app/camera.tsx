@@ -52,6 +52,8 @@ export default function App() {
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [cameraMounted, setCameraMounted] = useState(false);
   const recordingTriggeredRef = useRef(false);
+  const [firstRecordingDone, setFirstRecordingDone] = useState(false);
+
 
 
   useEffect(() => {
@@ -70,8 +72,10 @@ export default function App() {
 
     if (recording) {
     } else if (waiting) {
-      setStatusMessage(`Waiting for next recording... (${waitDuration}s)`);
-    } else if (isProcessingVideo) {
+      //const waitTime = firstRecordingDone ? (dynamicWaitTime ?? waitDuration) : bufferTime;
+      //setStatusMessage(`Waiting for next recording... (${waitTime}s)`);
+    }
+     else if (isProcessingVideo) {
       setStatusMessage(`Processing video...`);
     }
 
@@ -99,25 +103,28 @@ export default function App() {
     const storage = getStorage()
     const videoRef = ref(storage, file_path)
 
-    const blub = new Blob([uri],{type: 'video/mp4'})
-    const file = uploadBytesResumable(videoRef, blub)//{
+    const response = await fetch(uri);
+    const blob = await response.blob();
 
       // Append the file to FormData
-    file.on('state_changed',
-      (snapshot) =>{
-          const progress = (snapshot.bytesTransferred /snapshot.totalBytes) * 100
-          console.log(`upload is ${progress.toFixed(2)}% done`)
-      }
-    )
-      
-    const videoId = uuid.v4();
-    await setDoc(doc(FIREBASE_DB, "users", activeUser.uid, "videos", videoId), {
-      file_path,
-      time_stored: Date.now(),
-      status: "pending"
-    });
+      const uploadTask = uploadBytesResumable(videoRef, blob);
 
-    setRecordingStats({ videoId });
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          console.log(`upload is ${progress.toFixed(2)}% done`);
+        }
+      );
+    
+      const videoId = uuid.v4();
+      await setDoc(doc(FIREBASE_DB, "users", activeUser.uid, "videos", videoId), {
+        file_path,
+        time_stored: Date.now(),
+        status: "pending"
+      });
+    
+      setRecordingStats({ videoId });
+      pollForResults(videoId); 
 
   }, [activeUser]);
 
@@ -145,19 +152,32 @@ export default function App() {
           const counts = res.alertness_counts as Record<string, number>;
           const mostCommon = Object.entries(counts).reduce((a, b) => (b[1] > a[1] ? b : a))[0];
           setAlertLevel(mostCommon);
-        } else {
-          console.warn("⚠️ Missing or invalid alertness_counts:", res);
-          setAlertLevel("Unknown");
+        
+          
+          let dynamicWaitTime = 180; // default fallback (3 minutes)
+          if (mostCommon === "Very Drowsy") {
+            dynamicWaitTime = 300; // 5 minutes
+          } else if (mostCommon === "Low Vigilant") {
+            dynamicWaitTime = 420; // 7 minutes
+          } else if (mostCommon === "Alert") {
+            dynamicWaitTime = 600; // 10 minutes
+          }
+          setDynamicWaitTime(dynamicWaitTime); 
+          setWaitDuration(dynamicWaitTime); 
+          console.log(`⏱️ Wait time until next recording: ${dynamicWaitTime / 60} minutes`);
         }
+  
         if (res?.eyes_closed_frames !== undefined && res?.total_frames) {
           setEyesState(res.eyes_closed_frames > res.total_frames / 2 ? "Eyes Closed" : "Eyes Open");
         }
-        
+  
         if (res?.yawning_frames !== undefined) {
-          setYawnState(res.yawning_frames > 1 ? "Yawning" : "Not Yawning");
+          setYawnState(res.yawning_state);
         }
   
-        setShowAlert(res.alertness_counts["Very Drowsy"] > 3);
+        setShowAlert(res.alertness_counts?.["Very Drowsy"] > 3);
+        setIsProcessingVideo(false); 
+        setProcessingMessage("");
         setPendingLabelCheck(false);
         unsubscribe();
       }
@@ -165,6 +185,27 @@ export default function App() {
   
     setPendingLabelCheck(true);
   };
+  
+
+  const determineWaitTime = (alertnessPercentages: any): number => {
+    if (!alertnessPercentages) return 180;
+  
+    const dominant = Object.entries(alertnessPercentages).reduce((a: any, b: any) => {
+      return b[1] > a[1] ? b : a;
+    })[0]; // Get the label
+  
+    switch (dominant) {
+      case "Very Drowsy":
+        return 300;
+      case "Low Vigilant":
+        return 420;
+      case "Alert":
+        return 600;
+      default:
+        return 180;
+    }
+  };
+  
   
 
   const stopRecording = useCallback(() => {
@@ -198,9 +239,34 @@ export default function App() {
 
   const recordVideo = async () => {
     console.log("⚙️ Recording triggered");
-    setWaiting(false);
-    setRecording(true);
-    recordingTriggeredRef.current = true;
+  
+    if (!camRef.current || !isCameraReady) {
+      console.warn("❌ Camera not ready yet");
+      return;
+    }
+  
+    try {
+      recordingTriggeredRef.current = true; // ✅ move here
+      setRecording(true);
+      console.log("🎥 Recording in progress");
+      setProcessingMessage("Recording video...");
+  
+      const video = await camRef.current.recordAsync({
+        maxDuration: recordDuration,
+        quality: '480p',
+        mute: false,
+      });
+  
+      console.log("✅ Video recorded:", video.uri);
+      setFirstRecordingDone(true);
+      stopRecording();
+      setIsProcessingVideo(true);
+      setProcessingMessage("Uploading video...");
+      await send_to_storage(video.uri);
+    } catch (err) {
+      console.error("❌ Error during recording or analysis:", err);
+      stopRecording();
+    }
   };
   
   const normalizeArray = useCallback((array: number[] | Float32Array): number[] => {
@@ -228,76 +294,7 @@ export default function App() {
       } else {
         console.warn("⚠️ No Firebase user is signed in.");
       }
-  }, []);
-
-
-  useEffect(() => {
-    setProgress(0)
-    if(waiting && !recording && !isProcessingVideo) {
-      setCameraMounted(true);
-      console.log("Waiting for recording to start...");
-      let waitTime = dynamicWaitTime ?? waitDuration;
-      setProgress(0);
-      let interval: ReturnType<typeof setInterval>;
-
-      const totalWaitTime = recordDuration + bufferTime;
-      const bufferTimer = setTimeout(() => {
-        setStatusMessage("Buffering camera...");
-      }, recordDuration * 1000);
-
-    const startRecordingTimer = setTimeout(() => {
-      setIndeterminate(false);
-      interval = setInterval(() => {
-        setProgress((prevProgress) => {
-          if (prevProgress >= 1) {
-            setWaitDuration(data);
-            setWaiting(false);
-            setDynamicWaitTime(null);
-            return 0;
-          }
-          return prevProgress + 1 / waitTime;
-        });
-      }, waitTime * 100);
-    }, totalWaitTime * 1000);
-    
-    return () => {
-      clearTimeout(bufferTimer);
-      clearTimeout(startRecordingTimer);
-      if (interval) clearInterval(interval);
-    };
-    
-    }
-  }, [data, fetchDataFromBackend, recordDuration, recordVideo, recording, waitDuration, waiting, isProcessingVideo, dynamicWaitTime, pendingLabelCheck]);
-
-  useEffect(() => {
-    if (
-      cameraMounted &&
-      isCameraReady &&
-      waiting &&
-      !recording &&
-      !isProcessingVideo &&
-      !pendingLabelCheck
-    ) {
-      recordingTriggeredRef.current = true;
-      console.log("✅ Camera is ready and mounted. Starting buffer countdown...");
-      setTimeout(() => {
-        if (camRef.current) {
-          recordVideo();
-        } else {
-          console.warn("❌ Camera still not fully ready. Skipping this round.");
-          setIsCameraReady(false); // Reset to retry next cycle
-        }
-      }, 500); // short delay to avoid race condition
-    }
-  }, [
-    cameraMounted,
-    isCameraReady,
-    waiting,
-    recording,
-    isProcessingVideo,
-    pendingLabelCheck,
-  ]);
-  
+  }, []);  
 
   /** First useEffect hook listens for changes to certain state vars that are changed (wiating, recordin, or waitDuration)
    * Program starts in the waiting phase. Conditional checks if waiting = true and recording = false. If condition is met, a setTimeout is started as an inital
@@ -311,65 +308,38 @@ export default function App() {
    * After recordDuration secs the stopREcording function is called and the progress is cleared.
    * Waiting is set to true
    */
+  
   useEffect(() => {
-    if (recording && !waiting && !isProcessingVideo) {
-      console.log("🎥 Recording useEffect triggered");
+    if (
+      !recordingTriggeredRef.current &&
+      !recording &&
+      !isProcessingVideo &&
+      isCameraReady &&
+      waiting
+    ) {
+      const delay = firstRecordingDone ? (dynamicWaitTime ?? waitDuration) : bufferTime;
+      console.log(`⏳ ${firstRecordingDone ? "Waiting before next recording" : "Buffering before first recording"} (${delay} sec)`);
   
-      let progressInterval: any;
+      recordingTriggeredRef.current = true;
+      setProgress(0);
   
-      const startRecording = async () => {
-        try {
-          const video = await camRef.current?.recordAsync({ maxDuration: recordDuration, quality: '720p' });
-      
-          if (!video?.uri) {
-            console.warn("⚠️ No video URI returned from recordAsync");
-            return;
-          }
-      
-          setIsProcessingVideo(true);
-          setStatusMessage("Analyzing video...");
-          setProcessingMessage("Analyzing video...");
-          
-          await send_to_storage(video.uri);
-          pollForResults(recordingStats?.videoId);
-      
-        } catch (err) {
-          console.error("❌ Error during recording or analysis:", err);
-          setStatusMessage("Recording failed");
-        } finally {
-          setRecording(false);
-          recordingTriggeredRef.current = false;
-          setRecordingComplete(true);
-          setIsProcessingVideo(false);
-          setWaiting(false);
-          setProgress(0);
-          setProcessingMessage("");
-          if (progressInterval) clearInterval(progressInterval);
-        }
-      };
-      
-  
-      // Start progress bar
-      progressInterval = setInterval(() => {
+      let interval = setInterval(() => {
         setProgress((prev) => {
           if (prev >= 1) {
-            clearInterval(progressInterval);
-            return 1;
+            clearInterval(interval);
+            setProgress(0);
+            setWaiting(false);
+            recordVideo();
+            return 0;
           }
-          return prev + 1 / recordDuration;
+          return prev + 1 / delay;
         });
       }, 1000);
   
-      //setIsProcessingVideo(true);
-      setWaiting(false);
-      setStatusMessage("Recording...");
-      startRecording();
-  
-      return () => {
-        clearInterval(progressInterval);
-      };
+      return () => clearInterval(interval);
     }
-  }, [recording, waiting, isProcessingVideo, recordDuration, playSound]);
+  }, [recording, isProcessingVideo, waiting, dynamicWaitTime, waitDuration, bufferTime, isCameraReady, firstRecordingDone]);
+    
   
   
 
@@ -387,6 +357,7 @@ export default function App() {
       onCameraReady={() => {
         console.log("✅ onCameraReady triggered!");
         setIsCameraReady(true);
+        setCameraMounted(true);
       }}
       onMountError={(error) => {
         console.error("❌ Camera mount error:", error);
@@ -458,7 +429,7 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      {cameraMounted && renderCamera()}
+      {renderCamera()}
       
       {isProcessingVideo && renderProcessingOverlay()}
 
