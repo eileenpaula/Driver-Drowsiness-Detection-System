@@ -10,10 +10,8 @@ import requests
 
 # Initialize Firebase Admin SDK with your service account key
 def init(): #could get removed int he future
-    file_path = "C:\\Users\\NeoPancakeFiles\\Desktop\\FIU\\SEMESTERS\\2025 Spring"
-    load_dotenv(dotenv_path=f"{file_path}\\Driver-Drowsiness-Detection-System\\app\\.env")
-
-    cred = credentials.Certificate(os.getenv("CONF_JSON"))
+    load_dotenv(dotenv_path=".\\app\\.env")
+    cred = credentials.Certificate(".\\backend\\app\\scripts\\drowsy-app-47252-firebase-adminsdk-fbsvc-8530940620.json")
     firebase_admin.initialize_app(cred, {
         'storageBucket': os.getenv("EXPO_PUBLIC_STROAGE_BUCKET") 
     })

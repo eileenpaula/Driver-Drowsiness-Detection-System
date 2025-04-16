@@ -10,7 +10,12 @@ from scripts.sms import sms_emg
 
 app = Flask(__name__)
 CORS(app)
-init()
+try:
+    os.chdir("..")
+    init()
+except:
+    os.chdir("Driver-Drowsiness-Detection-System")
+    init()
 
 # Define the folder where uploaded files will be saved
 UPLOAD_FOLDER = '../DOWNLOAD'
