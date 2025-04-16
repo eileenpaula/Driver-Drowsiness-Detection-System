@@ -1,62 +1,187 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
-import { getFirestore, collection, getDocs } from 'firebase/firestore';
-import { FIREBASE_APP } from '../database/.config';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, FlatList } from 'react-native';
+import { collection, getDocs, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { FIREBASE_AUTH, FIREBASE_DB } from '../database/.config';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import {format} from 'date-fns';
+import Svg, { Polyline, Line, Text as SvgText } from 'react-native-svg';
+
+const AlertnessLineGraph = ({
+  data,
+  labels,
+}: {
+  data: { Alert: number; Low: number; Drowsy: number }[];
+  labels: string[];
+}) => {
+  const width = 300;
+  const height = 100;
+  const maxY = 100;
+  const padding = 20;
+
+  const getPoints = (key: keyof typeof data[0]) => {
+    return data
+      .map((point, index) => {
+        const x = padding + (index / (data.length - 1)) * (width - 2 * padding);
+        const y = height - padding - (point[key] / maxY) * (height - 2 * padding);
+        return `${x},${y}`;
+      })
+      .join(" ");
+  };
+
+  return (
+    <View style={{ alignItems: "center", marginBottom: 20 }}>
+      <Svg height={height + 20} width={width}>
+        {/* X axis */}
+        <Line
+          x1={padding}
+          y1={height - padding}
+          x2={width - padding}
+          y2={height - padding}
+          stroke="gray"
+          strokeWidth="1"
+        />
+        {/* Alertness Lines */}
+        <Polyline points={getPoints("Alert")} fill="none" stroke="green" strokeWidth="2" />
+        <Polyline points={getPoints("Low")} fill="none" stroke="orange" strokeWidth="2" />
+        <Polyline points={getPoints("Drowsy")} fill="none" stroke="red" strokeWidth="2" />
+
+        {/* X-axis date labels */}
+        {labels.map((label, index) => {
+          const x = padding + (index / (labels.length - 1)) * (width - 2 * padding);
+          return (
+            <SvgText
+              key={index}
+              x={x}
+              y={height}
+              fontSize="8"
+              fill="black"
+              textAnchor="middle"
+            >
+              {label}
+            </SvgText>
+          );
+        })}
+      </Svg>
+    </View>
+  );
+};
+
 
 
 export default function StatsPage() {
-  const [analysisData, setAnalysisData] = useState<any[]>([]);
+  const [videos, setVideos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const db = getFirestore(FIREBASE_APP);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchAnalysisResults = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, 'analysis_results'));
-        const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setAnalysisData(data);
-      } catch (error) {
-        console.error('Error fetching results:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchVideos = () => {
+    const user = FIREBASE_AUTH.currentUser;
+    if (!user) return;
+  
+    const q = query(
+      collection(FIREBASE_DB, "users", user.uid, "videos"),
+      orderBy("time_stored", "desc")
+    );
+  
+    return onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setVideos(data);
+      setLoading(false);
+    });
+  };
 
-    fetchAnalysisResults();
+  useEffect(() => {
+    fetchVideos();
   }, []);
+  
+  const alertnessGraphData = videos.map((video) => ({
+    Alert: video.results?.alertness_percentages?.["Alert"] || 0,
+    Low: video.results?.alertness_percentages?.["Low Vigilant"] || 0,
+    Drowsy: video.results?.alertness_percentages?.["Very Drowsy"] || 0,
+  }));
+  
+  const alertnessLabels = videos.map((video) => {
+    const date = new Date(video.createdAt?.seconds * 1000);
+    return `${date.getMonth() + 1}/${date.getDate()}`; // e.g. "4/15"
+  });
+  
+
+  const chartData = ["Alert", "Low Vigilant", "Very Drowsy"].map((label) => ({
+    label,
+    data: videos
+      .filter((v) => v.results?.alertness_percentages?.[label] !== undefined)
+      .map((v, index) => ({
+        x: index + 1,
+        y: v.results.alertness_percentages[label],
+      })),
+  }));
+  
+
+  const renderItem = ({ item }: { item: any }) => {
+    const { results, time_stored } = item;
+    const date = (item.time_recorded?.toDate?.() || time_stored?.toDate?.() || new Date());
+
+    return (
+      <View style={styles.card}>
+        <Text style={styles.date}>{format(date, "PPpp")}</Text>
+        {results ? (
+          <>
+            <Text style={styles.stat}>
+              <Text style={styles.label}>Eyes Closed:</Text> {results.eyes_closed_frames}
+            </Text>
+            <Text style={styles.stat}>
+              <Text style={styles.label}>Yawning:</Text> {results.yawning_frames}
+            </Text>
+            <Text style={[styles.stat, { marginTop: 10 }]}>
+              <Text style={styles.label}>Alertness:</Text>
+            </Text>
+            {["Alert", "Low Vigilant", "Very Drowsy"].map((state) => {
+              const percent = results.alertness_percentages?.[state] ?? 0;
+              return (
+                <Text key={state} style={styles.stat}>- {state}: {percent.toFixed(1)}%</Text>
+              );
+            })}
+          </>
+        ) : (
+          <Text style={styles.stat}>Results pending...</Text>
+        )}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={() => router.back()} style={styles.back_arrow}>
         <Ionicons name="arrow-back" size={40} color="#99342C" />
       </TouchableOpacity>
+      <Text style={{ fontWeight: 'bold', textAlign: 'center', color: '#4c4036', marginBottom: 10 }}>Alertness Over Time</Text>
+      <AlertnessLineGraph data={alertnessGraphData} labels={alertnessLabels} />
 
-      <Text style={styles.title}>Driving Stats</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 20 }}>
+        <Text style={{ color: 'green', marginHorizontal: 10 }}>Alert</Text>
+        <Text style={{ color: 'orange', marginHorizontal: 10 }}>Low Vigilant</Text>
+        <Text style={{ color: 'red', marginHorizontal: 10 }}>Very Drowsy</Text>
+      </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#99342C" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color="#000" />
+      ) : videos.length > 0 ? (
+        <FlatList
+          contentContainerStyle={styles.cardContainer}
+          data={videos}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+        />
       ) : (
-        <ScrollView contentContainerStyle={styles.cardContainer}>
-          {analysisData.length === 0 ? (
-            <Text style={styles.noDataText}>No analysis results found.</Text>
-          ) : (
-            analysisData.map(result => (
-              <View key={result.id} style={styles.card}>
-                <Text style={styles.date}>{new Date(result.timestamp).toLocaleString()}</Text>
-                <Text style={styles.stat}><Text style={styles.label}>Drowsy Frames:</Text> {result.drowsyCount}</Text>
-                <Text style={styles.stat}><Text style={styles.label}>Normal Frames:</Text> {result.normalCount}</Text>
-                <Text style={styles.stat}><Text style={styles.label}>Duration:</Text> {result.duration}s</Text>
-              </View>
-            ))
-          )}
-        </ScrollView>
+        <Text style={styles.noDataText}>No past results yet.</Text>
       )}
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {

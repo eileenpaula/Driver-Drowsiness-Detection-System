@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import cv2, time, os, json
+import cv2, time, os, json, time
 import matplotlib.pyplot as plt
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
@@ -146,18 +146,18 @@ class DrowsinessDetector:
         alertness_counts = {label: alertness_labels.count(label) for label in self.alertness_labels}
         alertness_percentages = {k: round(v / total * 100, 2) for k, v in alertness_counts.items()}
 
-        # Plot alertness trend
-        alertness_indices = [self.alertness_labels.index(label) for label in alertness_labels]
-        plt.figure(figsize=(10, 4))
-        plt.plot(alertness_indices, label='Alertness Level (0=Alert, 2=Very Drowsy)', color='blue')
-        plt.title('Alertness Prediction Over Time')
-        plt.xlabel('Frame Index')
-        plt.ylabel('Alertness Level')
-        plt.yticks([0, 1, 2], self.alertness_labels)
-        plt.grid(True)
-        plt.legend()
-        plt.tight_layout()
-        plt.show()
+        # # Plot alertness trend
+        # alertness_indices = [self.alertness_labels.index(label) for label in alertness_labels]
+        # plt.figure(figsize=(10, 4))
+        # plt.plot(alertness_indices, label='Alertness Level (0=Alert, 2=Very Drowsy)', color='blue')
+        # plt.title('Alertness Prediction Over Time')
+        # plt.xlabel('Frame Index')
+        # plt.ylabel('Alertness Level')
+        # plt.yticks([0, 1, 2], self.alertness_labels)
+        # plt.grid(True)
+        # plt.legend()
+        # plt.tight_layout()
+        # plt.show()
 
         return {
             "total_frames": total,
@@ -184,6 +184,12 @@ def analyze_pending_videos():
         data = doc.to_dict()
         file_path = data["file_path"]
         print(f"📥 Processing video: {file_path}")
+        video_id = doc.id
+        print(f"Video ID: {video_id}")
+        doc_ref = doc.reference
+        user_ref = doc_ref.parent.parent
+        user_id = user_ref.id if user_ref else None
+        print(f"User ID: {user_id}")
 
         blob = bucket.blob(file_path)
 
@@ -195,6 +201,7 @@ def analyze_pending_videos():
 
         json_filename = os.path.splitext(os.path.basename(video_path))[0] + "_results.json"
         json_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+        
         with open(json_temp.name, "w") as jf:
             json.dump(summary, jf)
 
@@ -207,12 +214,29 @@ def analyze_pending_videos():
         doc.reference.set({
             "status": "complete",
             "results": summary,
-            "result_json_url": json_url
+            "result_json_url": json_url,
+            "time_stored": data.get("time_recorded", firestore.SERVER_TIMESTAMP),
         }, merge=True)
+        
+        # results_summary = {
+        #     "user_id": user_id,
+        #     "video_id": doc.id,
+        #     "timestamp": firestore.SERVER_TIMESTAMP,
+        #     "drowsyCount": alertness_counts.get("Very Drowsy", 0),
+        #     "normalCount": alertness_counts.get("Alert", 0),
+        #     "duration": results.get("duration", 60)  # Optional: include duration
+        # }
+        # analysis_results_ref = db.collection("analysis_results")
+        # analysis_results_ref.add(results_summary)
 
         os.unlink(video_path)
         os.unlink(json_temp.name)
 
-if __name__ == "__main__":
-    analyze_pending_videos()
 
+if __name__ == "__main__":
+    try:
+        while True:
+            analyze_pending_videos()
+            time.sleep(10)
+    except KeyboardInterrupt:
+        print("Process interrupted by user.")

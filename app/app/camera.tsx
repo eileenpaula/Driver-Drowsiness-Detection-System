@@ -11,7 +11,7 @@ import { Link } from 'expo-router';
 import {Ionicons} from '@expo/vector-icons';
 import * as Progress from "react-native-progress";
 import { useRouter } from "expo-router";
-import { DocumentData, setDoc, doc } from "firebase/firestore"; 
+import { DocumentData, setDoc, doc, serverTimestamp } from "firebase/firestore"; 
 import { FIREBASE_AUTH, FIREBASE_DB } from "../database/.config";
 import { Audio } from 'expo-av';
 import { getStorage, ref, uploadBytesResumable } from 'firebase/storage'
@@ -32,7 +32,7 @@ export default function App() {
   const [indeterminate, setIndeterminate] = useState(true);
   const [waiting, setWaiting] = useState(true);
   const [data, setData] = useState(10);
-  const [recordDuration, setRecordDuration] = useState(60);
+  const [recordDuration, setRecordDuration] = useState(20);
   const [waitDuration, setWaitDuration] = useState(5)  
   const [activeUser, setActiveUser] = useState<User | null>(null);
   const [sound, setSound] = useState<Audio.Sound | undefined>(undefined);
@@ -45,7 +45,7 @@ export default function App() {
   const [recordingComplete, setRecordingComplete] = useState(false);
   const [recordingStats, setRecordingStats] = useState<any>(null);
   const [statusMessage, setStatusMessage] = useState("Initializing...");
-  const [bufferTime, setBufferTime] = useState(10);
+  const [bufferTime, setBufferTime] = useState(15);
   const [dynamicWaitTime, setDynamicWaitTime] = useState<number | null>(null);
   const [modelResponseTimer, setModelResponseTimer] = useState<NodeJS.Timeout | null>(null);
   const [pendingLabelCheck, setPendingLabelCheck] = useState(false);
@@ -119,7 +119,7 @@ export default function App() {
       const videoId = uuid.v4();
       await setDoc(doc(FIREBASE_DB, "users", activeUser.uid, "videos", videoId), {
         file_path,
-        time_stored: Date.now(),
+        time_stored: serverTimestamp(),
         status: "pending"
       });
     
@@ -128,16 +128,16 @@ export default function App() {
 
   }, [activeUser]);
 
-  const fetchDataFromBackend = useCallback(async () => {
-    try {
-      const response = await fetch(`http://10.108.137.153:500/data`);
-      const json = await response.json();
-      return json;
-    } catch (error) {
-      console.error("Error fetching analysis results:", error);
-      return null;
-    }
-  }, [activeUser, playSound]);
+  // const fetchDataFromBackend = useCallback(async () => {
+  //   try {
+  //     const response = await fetch(`http://10.108.137.153:500/data`);
+  //     const json = await response.json();
+  //     return json;
+  //   } catch (error) {
+  //     console.error("Error fetching analysis results:", error);
+  //     return null;
+  //   }
+  // }, [activeUser, playSound]);
 
   const pollForResults = (videoId: string) => {
     const docRef = doc(FIREBASE_DB, "users", activeUser.uid, "videos", videoId);
@@ -152,6 +152,9 @@ export default function App() {
           const counts = res.alertness_counts as Record<string, number>;
           const mostCommon = Object.entries(counts).reduce((a, b) => (b[1] > a[1] ? b : a))[0];
           setAlertLevel(mostCommon);
+          if(mostCommon === "Very Drowsy") {
+            playSound(); // Play sound if "Very Drowsy" detected
+          }
         
           
           let dynamicWaitTime = 180; // default fallback (3 minutes)
@@ -179,34 +182,15 @@ export default function App() {
         setIsProcessingVideo(false); 
         setProcessingMessage("");
         setPendingLabelCheck(false);
+        setRecordingComplete(true);
+        setStatusMessage("Waiting for next recording...");
         unsubscribe();
       }
     });
   
     setPendingLabelCheck(true);
   };
-  
-
-  const determineWaitTime = (alertnessPercentages: any): number => {
-    if (!alertnessPercentages) return 180;
-  
-    const dominant = Object.entries(alertnessPercentages).reduce((a: any, b: any) => {
-      return b[1] > a[1] ? b : a;
-    })[0]; // Get the label
-  
-    switch (dominant) {
-      case "Very Drowsy":
-        return 300;
-      case "Low Vigilant":
-        return 420;
-      case "Alert":
-        return 600;
-      default:
-        return 180;
-    }
-  };
-  
-  
+   
 
   const stopRecording = useCallback(() => {
     console.log("Stopping recording...");
@@ -214,27 +198,6 @@ export default function App() {
     recordingTriggeredRef.current = false;
     console.log("Recording stopped.");
   }, []);
-
-  // const sendVideoToBackend = async (videoUri: string) => {
-  //   const formData = new FormData();
-  //   formData.append("video", {
-  //     uri: videoUri,
-  //     type: "video/mp4",
-  //     name: "video.mp4"
-  //   });
-  
-  //   const res = await fetch("http://10.108.137.153:5000/analyze-video", {
-  //     method: 'POST',
-  //     headers: {
-  //       Authorization: activeUser?.stsTokenManager.accessToken ?? '',
-  //     },
-  //     body: formData,
-  //   });
-  
-  //   const json = await res.json();
-  //   console.log("💡 Analysis result:", json);
-  //   return json;
-  // };
   
 
   const recordVideo = async () => {
@@ -244,6 +207,7 @@ export default function App() {
       console.warn("❌ Camera not ready yet");
       return;
     }
+    setRecordingComplete(false);
   
     try {
       recordingTriggeredRef.current = true; // ✅ move here
@@ -269,12 +233,12 @@ export default function App() {
     }
   };
   
-  const normalizeArray = useCallback((array: number[] | Float32Array): number[] => {
-    const result = new Array(array.length).fill(0);
-    const maxIndex = Array.from(array).indexOf(Math.max(...Array.from(array)));
-    result[maxIndex] = 1;
-    return result;
-  }, []);
+  // const normalizeArray = useCallback((array: number[] | Float32Array): number[] => {
+  //   const result = new Array(array.length).fill(0);
+  //   const maxIndex = Array.from(array).indexOf(Math.max(...Array.from(array)));
+  //   result[maxIndex] = 1;
+  //   return result;
+  // }, []);
   
 
   useEffect(() => {
@@ -441,11 +405,14 @@ export default function App() {
       )}
       
       {!isProcessingVideo && recordingComplete && (
-        <View style={styles.drowsinessStatusContainer}>
-        <Text style={styles.drowsinessStatusText}>Alertness: {alertLevel}</Text>
-        <Text style={styles.drowsinessStatusText}>Eyes: {eyesState}</Text>
-        <Text style={styles.drowsinessStatusText}>Yawn: {yawnState}</Text>
-      </View>
+        <View style={styles.resultsContainer}>
+          <Text style={styles.resultsTitle}>Analysis Results</Text>
+          <View style={styles.resultsDetails}>
+            <Text style={styles.drowsinessStatusText}>Alertness: {alertLevel}</Text>
+            <Text style={styles.drowsinessStatusText}>Eyes: {eyesState}</Text>
+            <Text style={styles.drowsinessStatusText}>Yawn: {yawnState}</Text>
+          </View>
+        </View>
       )}
       
       {showAlert && (
@@ -553,5 +520,26 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginTop: 20,
     textAlign: 'center',
+  },
+  resultsContainer: {
+    position: "absolute",
+    top: 90,
+    right: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    padding: 12,
+    borderRadius: 12,
+    zIndex: 100,
+    alignItems: "flex-start",
+  },
+  
+  resultsTitle: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  
+  resultsDetails: {
+    marginTop: 4,
   },
 });
