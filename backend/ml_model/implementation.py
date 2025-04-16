@@ -20,7 +20,7 @@ class DrowsinessDetector:
         self.eye_labels = ["Eyes Open", "Eyes Closed"]
 
     def preprocess_frame(self, frame):
-        resized = cv2.resize(frame, (224, 224))
+        resized = cv2.resize(frame, (128, 128))
         rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
         normalized = rgb / 255.0
         return np.expand_dims(normalized, axis=0)
@@ -187,11 +187,9 @@ def analyze_pending_videos():
 
         blob = bucket.blob(file_path)
 
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-        temp_file.close()
-        blob.download_to_filename(temp_file.name)
-        video_path = temp_file.name
-
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+            blob.download_to_filename(temp_file.name)
+            video_path = temp_file.name
         results = detector.process_video(video_path, sample_rate=2)
         summary = detector.analyze_video_results(results)
 
