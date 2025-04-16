@@ -10,33 +10,31 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<String>('');
   const router = useRouter();
 
   const handleLogin = async () => {
-    setError('error');
+    setError('');
     setLoading(true);
+  
     try {
       await login_user({ email, password });
-        // const errorMessage = getAuthErrorMessage(error);
-        // console.log("error message:",errorMessage)
-        // setError(errorMessage)
-        // console.log(error)
-        router.replace('/')
-    } catch (err) {
+      router.replace('/');
+    } catch (err: unknown) {
+      console.log('Caught error in handleLogin:', err);
+  
       if (err instanceof FirebaseError) {
+        console.log('Firebase error code:', err.code);
         const errorMessage = getAuthErrorMessage(err);
         setError(errorMessage);
-        console.log("er message:", errorMessage);
-        console.log("Login error:", err.code);
       } else {
-        console.log("Non-Firebase error:", err);
+        console.log('Non-Firebase error:', err);
         setError('An unexpected error occurred.');
       }
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
     <View style={styles.container}>
@@ -48,6 +46,7 @@ const Login = () => {
           <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : null}
+      
 
       <TextInput
         style={styles.input}

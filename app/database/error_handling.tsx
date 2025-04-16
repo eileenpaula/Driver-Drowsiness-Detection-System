@@ -29,6 +29,8 @@ const firebaseErrorMessages: Record<string, string> = {
   'auth/captcha-check-failed': 'Captcha check failed. Please try again.',
   'auth/invalid-phone-number': 'Invalid phone number. Please try again.',
   'auth/missing-phone-number': 'Missing phone number. Please try again.',
+  'auth/missing-email': 'Missing email address. Please try again.',
+  'auth/missing-password': 'Missing password. Please try again.',
 
   // Quota Errors
   'auth/quota-exceeded': 'Quota exceeded. Please try again.',

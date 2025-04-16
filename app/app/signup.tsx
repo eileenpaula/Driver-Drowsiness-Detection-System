@@ -39,6 +39,12 @@ export default function signUpPage() {
                 <Ionicons name="arrow-back" size={40} color="#99342C" />
             </TouchableOpacity>
             <Text style={styles.subHeading}>Sign Up</Text>
+
+            {error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
               
             <TextInput
                 style={styles.input}
@@ -97,9 +103,7 @@ export default function signUpPage() {
                 <Text style={styles.signUpButtonText}>Sign Up</Text>
             </TouchableOpacity>
 
-            <Text style={styles.subHeading}>
-            {error}
-            </Text>
+            
 
         </View>
           );
@@ -150,6 +154,17 @@ export default function signUpPage() {
             color: 'white',
             fontWeight: 'bold',
             fontSize: 18,
+          },
+          errorContainer: {
+            marginBottom: 10,
+            padding: 10,
+            backgroundColor: '#ffebee',
+            borderRadius: 5,
+          },
+          errorText: {
+            color: 'red',
+            textAlign: 'center',
+            fontSize: 16,
           },
         });
         
