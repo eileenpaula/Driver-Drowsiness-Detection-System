@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import cv2, time, os, json, time
+from uuid import uuid4
 import matplotlib.pyplot as plt
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
@@ -10,8 +11,8 @@ class DrowsinessDetector:
     def __init__(self, model_path):
         try:
             self.model = tf.keras.models.load_model(model_path)
-            print("Model loaded successfully.")
-            self.model.summary()
+            # print("Model loaded successfully.")
+            # self.model.summary()
         except Exception as e:
             raise RuntimeError(f"Failed to load model from {model_path}: {e}")
 
@@ -166,30 +167,28 @@ class DrowsinessDetector:
             "alertness_counts": alertness_counts,
             "alertness_percentages": alertness_percentages
         }
-    
-def analyze_pending_videos():
-    cred = credentials.Certificate("serviceAccKey.json")
+
+def init():
+    # print(os.getcwd())
+    cred = credentials.Certificate("serviceAccKey.json") #MUST rename .json to serviceAccKey.json
     firebase_admin.initialize_app(cred, {
         'storageBucket': 'drowsy-app-47252.firebasestorage.app'
     })
 
+def analyze_pending_videos(detector):
+
     db = firestore.client()
     bucket = storage.bucket()
-    detector = DrowsinessDetector("multi_task_drowsiness_model.h5")
 
     videos_ref = db.collection_group("videos")
     pending_videos = videos_ref.where("status", "==", "pending").stream()
 
     for doc in pending_videos:
+        print("you are here")
         data = doc.to_dict()
         file_path = data["file_path"]
-        print(f"📥 Processing video: {file_path}")
-        video_id = doc.id
-        print(f"Video ID: {video_id}")
-        doc_ref = doc.reference
-        user_ref = doc_ref.parent.parent
-        user_id = user_ref.id if user_ref else None
-        print(f"User ID: {user_id}")
+        print(f"Processing video: {file_path}")
+
 
         blob = bucket.blob(file_path)
 
@@ -199,7 +198,7 @@ def analyze_pending_videos():
         results = detector.process_video(video_path, sample_rate=2)
         summary = detector.analyze_video_results(results)
 
-        json_filename = os.path.splitext(os.path.basename(video_path))[0] + "_results.json"
+        json_filename = str(uuid4()) + "_results.json"
         json_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
         
         with open(json_temp.name, "w") as jf:
@@ -229,14 +228,21 @@ def analyze_pending_videos():
         # analysis_results_ref = db.collection("analysis_results")
         # analysis_results_ref.add(results_summary)
 
-        os.unlink(video_path)
-        os.unlink(json_temp.name)
+        # os.unlink(video_path)
+        # os.unlink(json_temp.name)
 
 
 if __name__ == "__main__":
     try:
+        print(os.getcwd())
+        try:
+            os.chdir("..\\backend\\ml_model")
+        except:
+            pass
+        init()
+        detector = DrowsinessDetector("multi_task_drowsiness_model.h5")
         while True:
-            analyze_pending_videos()
+            analyze_pending_videos(detector)
             time.sleep(10)
     except KeyboardInterrupt:
         print("Process interrupted by user.")
