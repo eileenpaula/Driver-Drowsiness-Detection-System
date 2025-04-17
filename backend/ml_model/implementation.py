@@ -146,6 +146,11 @@ class DrowsinessDetector:
 
         alertness_counts = {label: alertness_labels.count(label) for label in self.alertness_labels}
         alertness_percentages = {k: round(v / total * 100, 2) for k, v in alertness_counts.items()}
+        yawn_labels = [r['yawn']['label'] for r in results]
+        yawn_counts = {label: yawn_labels.count(label) for label in self.yawn_labels}
+        most_common_yawn = max(yawn_counts, key=yawn_counts.get)
+
+
 
         # # Plot alertness trend
         # alertness_indices = [self.alertness_labels.index(label) for label in alertness_labels]
@@ -165,7 +170,8 @@ class DrowsinessDetector:
             "eyes_closed_frames": eyes_closed,
             "yawning_frames": yawning,
             "alertness_counts": alertness_counts,
-            "alertness_percentages": alertness_percentages
+            "alertness_percentages": alertness_percentages,
+            "yawning_state": most_common_yawn
         }
 
 def init():
@@ -190,11 +196,16 @@ def analyze_pending_videos(detector):
         print(f"Processing video: {file_path}")
 
 
-        blob = bucket.blob(file_path)
-
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
-            blob.download_to_filename(temp_file.name)
-            video_path = temp_file.name
+            temp_filename = temp_file.name
+
+        blob = bucket.blob(file_path)
+        if not blob.exists():
+            continue
+
+        blob.download_to_filename(temp_filename)
+        video_path = temp_filename
+
         results = detector.process_video(video_path, sample_rate=2)
         summary = detector.analyze_video_results(results)
 

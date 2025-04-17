@@ -18,6 +18,7 @@ import { getStorage, ref, uploadBytesResumable } from 'firebase/storage'
 import uuid from 'react-native-uuid';
 import type { User } from "firebase/auth";
 import { onSnapshot } from "firebase/firestore";
+import { set } from "date-fns";
 
 
 
@@ -45,7 +46,7 @@ export default function App() {
   const [recordingComplete, setRecordingComplete] = useState(false);
   const [recordingStats, setRecordingStats] = useState<any>(null);
   const [statusMessage, setStatusMessage] = useState("Initializing...");
-  const [bufferTime, setBufferTime] = useState(15);
+  const [bufferTime, setBufferTime] = useState(5);
   const [dynamicWaitTime, setDynamicWaitTime] = useState<number | null>(null);
   const [modelResponseTimer, setModelResponseTimer] = useState<NodeJS.Timeout | null>(null);
   const [pendingLabelCheck, setPendingLabelCheck] = useState(false);
@@ -157,14 +158,14 @@ export default function App() {
           }
         
           
-          let dynamicWaitTime = 180; // default fallback (3 minutes)
-          if (mostCommon === "Very Drowsy") {
-            dynamicWaitTime = 300; // 5 minutes
-          } else if (mostCommon === "Low Vigilant") {
-            dynamicWaitTime = 420; // 7 minutes
-          } else if (mostCommon === "Alert") {
-            dynamicWaitTime = 600; // 10 minutes
-          }
+          let dynamicWaitTime = 10; // default fallback (3 minutes)
+          // if (mostCommon === "Very Drowsy") {
+          //   dynamicWaitTime = 300; // 5 minutes
+          // } else if (mostCommon === "Low Vigilant") {
+          //   dynamicWaitTime = 420; // 7 minutes
+          // } else if (mostCommon === "Alert") {
+          //   dynamicWaitTime = 600; // 10 minutes
+          // }
           setDynamicWaitTime(dynamicWaitTime); 
           setWaitDuration(dynamicWaitTime); 
           console.log(`⏱️ Wait time until next recording: ${dynamicWaitTime / 60} minutes`);
@@ -174,9 +175,8 @@ export default function App() {
           setEyesState(res.eyes_closed_frames > res.total_frames / 2 ? "Eyes Closed" : "Eyes Open");
         }
   
-        if (res?.yawning_frames !== undefined) {
-          setYawnState(res.yawning_state);
-        }
+        setYawnState(res?.yawning_state ?? "Not Yawning");
+
   
         setShowAlert(res.alertness_counts?.["Very Drowsy"] > 3);
         setIsProcessingVideo(false); 
@@ -184,6 +184,7 @@ export default function App() {
         setPendingLabelCheck(false);
         setRecordingComplete(true);
         setStatusMessage("Waiting for next recording...");
+        setWaiting(true);
         unsubscribe();
       }
     });
@@ -282,7 +283,7 @@ export default function App() {
       waiting
     ) {
       const delay = firstRecordingDone ? (dynamicWaitTime ?? waitDuration) : bufferTime;
-      console.log(`⏳ ${firstRecordingDone ? "Waiting before next recording" : "Buffering before first recording"} (${delay} sec)`);
+      console.log(` ${firstRecordingDone ? "Waiting before next recording" : "Buffering before first recording"} (${delay} sec)`);
   
       recordingTriggeredRef.current = true;
       setProgress(0);
@@ -341,7 +342,6 @@ export default function App() {
       />
       <TouchableOpacity
         onPress={() => {
-          console.log("🔙 Back button pressed on camera screen");
           setRecording(false);
           setIsProcessingVideo(false);
           setWaiting(false);

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, FlatList } from 'react-native';
-import { collection, getDocs, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { FIREBASE_AUTH, FIREBASE_DB } from '../database/.config';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {format} from 'date-fns';
 import Svg, { Polyline, Line, Text as SvgText, Circle } from 'react-native-svg';
+import { RecaptchaVerifier } from 'firebase/auth';
 
 const AlertnessLineGraph = ({
   data,
@@ -81,12 +82,27 @@ const AlertnessLineGraph = ({
   );
 };
 
+type VideoRecord = {
+  id: string;
+  time_recorded?: any;
+  time_stored?: any;
+  results?: {
+    alertness_percentages?: {
+      [key: string]: number;
+    };
+    eyes_closed_frames?: number;
+    yawning_frames?: number;
+  };
+};
+
 
 
 export default function StatsPage() {
-  const [videos, setVideos] = useState<any[]>([]);
+  const [videos, setVideos] = useState<VideoRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  const graphVideos = [...videos].reverse();
 
   const fetchVideos = () => {
     const user = FIREBASE_AUTH.currentUser;
@@ -94,15 +110,29 @@ export default function StatsPage() {
   
     const q = query(
       collection(FIREBASE_DB, "users", user.uid, "videos"),
-      orderBy("time_stored", "desc")
+      orderBy("time_stored", "desc"),
+      limit(15) // Limit to the last 15 videos
     );
   
     return onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
+      const data: VideoRecord[] = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data(),
+        ...(doc.data() as Omit<VideoRecord, "id">),
       }));
-      setVideos(data);
+
+      const now = new Date();
+      const last24Hours = now.getTime() - 24 * 60 * 60 * 1000;
+
+      const recentVideos = data.filter((video) => {
+        const timestamp = video.time_recorded ?? video.time_stored;
+        const date = typeof timestamp?.toDate === "function"
+          ? timestamp.toDate()
+          : timestamp instanceof Date
+            ? timestamp
+            : null;
+        return date instanceof Date && date.getTime() >= last24Hours;
+      });
+      setVideos(recentVideos);
       setLoading(false);
     });
   };
@@ -110,8 +140,8 @@ export default function StatsPage() {
   useEffect(() => {
     fetchVideos();
   }, []);
-  
-  const alertnessGraphData = videos.map((video) => {
+
+  const alertnessGraphData = graphVideos.map((video) => {
     const alertness = video.results?.alertness_percentages || {};
     return {
       Alert: alertness["Alert"] || 0,
@@ -120,34 +150,22 @@ export default function StatsPage() {
     };
   });
   
-  const alertnessLabels = videos.map((video) => {
-    let timestamp = video.time_recorded ?? video.time_stored;
+  const seenHours = new Set<string>();
+  const alertnessLabels = graphVideos.map((video) => {
+    const timestamp = video.time_recorded ?? video.time_stored;
+    const date = typeof timestamp?.toDate === "function" ? timestamp.toDate() : timestamp;
   
-    // Convert Firestore Timestamp to Date only if needed
-    if (timestamp) {
-      const date = typeof timestamp.toDate === "function" ? timestamp.toDate() : timestamp;
-      try {
-        return format(date, "MMM d");
-      } catch {
-        return "Invalid";
-      }
+    if (!(date instanceof Date)) return "";
+  
+    const hourLabel = format(date, "haaa");
+    if (seenHours.has(hourLabel)) {
+      return "";
+    } else {
+      seenHours.add(hourLabel);
+      return hourLabel;
     }
-  
-    return "Unknown";
   });
   
-
-  const chartData = ["Alert", "Low Vigilant", "Very Drowsy"].map((label) => ({
-    label,
-    data: videos
-      .filter((v) => v.results?.alertness_percentages?.[label] !== undefined)
-      .map((v, index) => ({
-        x: index + 1,
-        y: v.results.alertness_percentages[label],
-      })),
-  }));
-  
-
   const renderItem = ({ item }: { item: any }) => {
     const { results, time_stored } = item;
     const date = (item.time_recorded?.toDate?.() || time_stored?.toDate?.() || new Date());
@@ -199,7 +217,7 @@ export default function StatsPage() {
       ) : videos.length > 0 ? (
         <FlatList
           contentContainerStyle={styles.cardContainer}
-          data={[...videos].reverse()}
+          data={videos}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
         />
