@@ -70,12 +70,7 @@ export default function App() {
   useEffect(() => {
     console.log(`State update: recording=${recording}, waiting=${waiting}, processing=${isProcessingVideo}`);
 
-    if (recording) {
-    } else if (waiting) {
-      //const waitTime = firstRecordingDone ? (dynamicWaitTime ?? waitDuration) : bufferTime;
-      //setStatusMessage(`Waiting for next recording... (${waitTime}s)`);
-    }
-     else if (isProcessingVideo) {
+    if (isProcessingVideo) {
       setStatusMessage(`Processing video...`);
     }
 
@@ -106,7 +101,6 @@ export default function App() {
     const response = await fetch(uri);
     const blob = await response.blob();
 
-    // Append the file to FormData
     const uploadTask = uploadBytesResumable(videoRef, blob);
 
       uploadTask.on('state_changed',
