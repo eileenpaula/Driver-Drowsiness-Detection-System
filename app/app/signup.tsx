@@ -201,7 +201,7 @@ export default function signUpPage() {
             borderRadius: 10,
             paddingHorizontal: 10,
             marginVertical: 10,
-            backgroundColor: '#fff',
+            backgroundColor: 'rgb(206, 209, 184)',
           },
           eyeIcon: {
             paddingHorizontal: 10,

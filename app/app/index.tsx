@@ -7,18 +7,14 @@ Was recieving an error with href--> using ./settings fixed it, something to do w
 *  -nage
 */
 import React, { useEffect } from "react";
-import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator} from "react-native";
 import {useFonts} from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from "expo-router";
 import { Link } from 'expo-router';
 import { FIREBASE_AUTH } from '../database/.config';
 import { onAuthStateChanged, User} from "firebase/auth";
-import { ErrorUtils } from "react-native";
 
-ErrorUtils.setGlobalHandler((error, isFatal) => {
-  console.log("Caught global error:", error);
-});
 
 export default function Index() {
   const [loadFonts]=useFonts({
