@@ -57,16 +57,16 @@ export default function App() {
 
 
 
-  useEffect(() => {
-    (async () => {
-      const { status: cameraStatus } = await Camera.requestCameraPermissionsAsync();
-      const { status: micStatus } = await Camera.requestMicrophonePermissionsAsync();
+  // useEffect(() => {
+  //   (async () => {
+  //     const { status: cameraStatus } = await Camera.requestCameraPermissionsAsync();
+  //     const { status: micStatus } = await Camera.requestMicrophonePermissionsAsync();
   
-      if (cameraStatus !== 'granted' || micStatus !== 'granted') {
-        alert('Camera and microphone permissions are required to use this feature.');
-      }
-    })();
-  }, []);
+  //     if (cameraStatus !== 'granted' || micStatus !== 'granted') {
+  //       alert('Camera and microphone permissions are required to use this feature.');
+  //     }
+  //   })();
+  // }, []);
 
   useEffect(() => {
     console.log(`State update: recording=${recording}, waiting=${waiting}, processing=${isProcessingVideo}`);
@@ -223,7 +223,7 @@ export default function App() {
       setStatusMessage("Uploading video...");
       await send_to_storage(video.uri);
     } catch (err) {
-      console.error("❌ Error during recording or analysis:", err);
+      console.log("recording interrupted");
       stopRecording();
     }
   };
@@ -269,6 +269,8 @@ export default function App() {
    */
   
   useEffect(() => {
+    setProgress(0);
+    
     if (
       !recordingTriggeredRef.current &&
       !recording &&
@@ -279,8 +281,9 @@ export default function App() {
       const delay = firstRecordingDone ? (dynamicWaitTime ?? waitDuration) : bufferTime;
       console.log(` ${firstRecordingDone ? "Waiting before next recording" : "Buffering before first recording"} (${delay} sec)`);
   
+      setIndeterminate(false)
       recordingTriggeredRef.current = true;
-      setProgress(0);
+      
   
       let interval = setInterval(() => {
         setProgress((prev) => {
@@ -300,6 +303,31 @@ export default function App() {
   }, [recording, isProcessingVideo, waiting, dynamicWaitTime, waitDuration, bufferTime, isCameraReady, firstRecordingDone]);
     
   
+  useEffect(() => {
+    if (recording && !waiting) {
+      console.log("recording now")
+      let progressInterval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 1) {
+            clearInterval(progressInterval);
+            return 1;
+          }
+          return prev + 1 / recordDuration; // Increment for 60 seconds
+        });
+      }, 1000);
+
+      setTimeout(() => {
+        stopRecording();
+        clearInterval(progressInterval);
+        setWaiting(true);
+        setProgress(0);
+        setTimeout(() => {
+          setWaiting(true);
+          setRecording(false);
+        }, waitDuration * 1000); // Wait for 10 seconds
+      }, recordDuration * 1000);
+    }
+  }, [permission, recording, waiting]);
   
 
 

@@ -254,6 +254,6 @@ if __name__ == "__main__":
         detector = DrowsinessDetector("multi_task_drowsiness_model.h5")
         while True:
             analyze_pending_videos(detector)
-            time.sleep(10)
+            #time.sleep(10)
     except KeyboardInterrupt:
         print("Process interrupted by user.")
