@@ -14,6 +14,11 @@ import { useRouter } from "expo-router";
 import { Link } from 'expo-router';
 import { FIREBASE_AUTH } from '../database/.config';
 import { onAuthStateChanged, User} from "firebase/auth";
+import { ErrorUtils } from "react-native";
+
+ErrorUtils.setGlobalHandler((error, isFatal) => {
+  console.log("Caught global error:", error);
+});
 
 export default function Index() {
   const [loadFonts]=useFonts({
