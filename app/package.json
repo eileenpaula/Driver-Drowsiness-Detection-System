@@ -3,7 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "concurrently \"expo start\" \"python3 ../backend/app/__init__.py\" \"Bash run.sh\"",
+    "start": "concurrently \"python ../backend/ml_model/implementation.py\" \"npx expo start\"",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
