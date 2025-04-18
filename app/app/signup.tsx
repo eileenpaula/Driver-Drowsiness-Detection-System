@@ -11,6 +11,7 @@ export default function signUpPage() {
     const [name, setName] = React.useState("");
     const [email, setEmail] = React.useState("");
     const [password, setPassword] = React.useState("");
+    const [passwordVisible, setPasswordVisible] = React.useState(false);
     const [phone, setPhone] = React.useState("");
     const [emg_name, setEmgName] = React.useState("");
     const [emg_phone, setEmgPhone] = React.useState("");
@@ -32,6 +33,21 @@ export default function signUpPage() {
                   }
         }
     }
+    const formatPhoneNumber = (value) => {
+      // Remove all non-digit characters
+      const cleaned = value.replace(/\D/g, '').slice(0, 10); // Only allow max 10 digits
+    
+      const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
+      if (!match) return value;
+    
+      const [, part1, part2, part3] = match;
+      let formatted = '';
+      if (part1) formatted = part1;
+      if (part2) formatted += `-${part2}`;
+      if (part3) formatted += `-${part3}`;
+      return formatted;
+    };
+  
 
     return (
         <View style={styles.container}>
@@ -63,20 +79,31 @@ export default function signUpPage() {
                 
             />
             
-            <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor={"#000"}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
+            <View style={styles.passwordContainer}>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            placeholder="Password"
+            placeholderTextColor="#000"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!passwordVisible}
+          />
+          <TouchableOpacity onPress={() => setPasswordVisible(!passwordVisible)}>
+            <Ionicons
+              name={passwordVisible ? "eye" : "eye-off"}
+              size={24}
+              color="#888"
+              style={styles.eyeIcon}
             />
+          </TouchableOpacity>
+        </View>
+
             <TextInput
                 style={styles.input}
                 placeholder="Phone Number"
                 placeholderTextColor={"#000"}
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(text) => setPhone(formatPhoneNumber(text))}
         
             />
             
@@ -94,7 +121,7 @@ export default function signUpPage() {
                 placeholder="Emergency Contact Phone Number"
                 placeholderTextColor={"#000"}
                 value={emg_phone}
-                onChangeText={setEmgPhone}
+                onChangeText={(text) => setEmgPhone(formatPhoneNumber(text))}
                 
             />
 
@@ -166,5 +193,18 @@ export default function signUpPage() {
             textAlign: 'center',
             fontSize: 16,
           },
+          passwordContainer: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: '#ccc',
+            borderRadius: 10,
+            paddingHorizontal: 10,
+            marginVertical: 10,
+            backgroundColor: '#fff',
+          },
+          eyeIcon: {
+            paddingHorizontal: 10,
+          },        
         });
         
