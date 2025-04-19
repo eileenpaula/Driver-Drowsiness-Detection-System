@@ -148,6 +148,7 @@ export default function App() {
           const mostCommon = Object.entries(counts).reduce((a, b) => (b[1] > a[1] ? b : a))[0];
           setAlertLevel(mostCommon);
           if(mostCommon === "Very Drowsy") {
+            setShowAlert(true);
             playSound(); // Play sound if "Very Drowsy" detected
           }
         
@@ -170,9 +171,8 @@ export default function App() {
         }
   
         setYawnState(res?.yawning_state ?? "Not Yawning");
-
   
-        setShowAlert(res.alertness_counts?.["Very Drowsy"] > 3);
+        //setShowAlert(res.alertness_counts?.["Very Drowsy"] > 3);
         setIsProcessingVideo(false); 
         setProcessingMessage("");
         setPendingLabelCheck(false);
