@@ -1,0 +1,11 @@
+
+To do:
+- error handling for a wrong email or password on login
+- error handling for sign up page (bad password/wrong phone num format/wrong email format.two users can't have the same email or phone number)
+- error handling sign up page should only redirect to homepage when the sign up button is pressesd and a new user has been created correctly (meaning all the fields are correct)
+    currently one can enter the app with the wrong/no info
+
+Nage:
+CRUD -> needs delete acc feature
+
+
