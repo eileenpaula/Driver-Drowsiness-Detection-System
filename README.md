@@ -1,6 +1,6 @@
 # Driver-Drowsiness-Detection-System
 
-Please follow the User Manaul: https://docs.google.com/document/d/1PggHZTMKaOSGutwm0t7sjMtuHehhgepLzoPDt9mqQbA/edit?usp=sharing
+Please follow the User Manual: https://docs.google.com/document/d/1PggHZTMKaOSGutwm0t7sjMtuHehhgepLzoPDt9mqQbA/edit?usp=sharing
 
 ## Mobile App Design
 This project implements an intuitive interface for users to interact with the Driver
@@ -73,14 +73,17 @@ Copy your Firebase config into the corresponding firebaseConfig.ts or
 an .env file
 
 Example .env: \
-EXPO_PUBLIC_IP_ADDR = … \
-EXPO_PUBLIC_API_KEY = … \
-EXPO_PUBLIC_AUTH_DOMAIN = … \
-EXPO_PUBLIC_PROJECT_ID = … \
-EXPO_PUBLIC_STROAGE_BUCKET = … \
-EXPO_PUBLIC_MESSAGING_SENDER_ID = … \
-EXPO_PUBLIC_APP_ID = … \
-EXPO_PUBLIC_MEASUREMENT_ID = …
+EXPO_PUBLIC_IP_ADDR=...
+EXPO_PUBLIC_API_KEY=...
+EXPO_PUBLIC_AUTH_DOMAIN=...
+EXPO_PUBLIC_PROJECT_ID=...
+EXPO_PUBLIC_STROAGE_BUCKET=...
+EXPO_PUBLIC_MESSAGING_SENDER_ID=...
+EXPO_PUBLIC_APP_ID=...
+EXPO_PUBLIC_MEASUREMENT_ID=...
+CONF_JSON= “...”
+PROJECT_PATH="..."
+
 
 **3) Start the app with Expo**
 Launch the development server:
