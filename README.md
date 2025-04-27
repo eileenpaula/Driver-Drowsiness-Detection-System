@@ -1,5 +1,7 @@
 # Driver-Drowsiness-Detection-System
 
+Please follow the User Manaul: https://docs.google.com/document/d/1PggHZTMKaOSGutwm0t7sjMtuHehhgepLzoPDt9mqQbA/edit?usp=sharing
+
 ## Mobile App Design
 This project implements an intuitive interface for users to interact with the Driver
 Drowsiness Detection System.
